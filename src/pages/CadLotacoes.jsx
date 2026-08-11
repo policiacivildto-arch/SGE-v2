@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import Modal from '../components/Modal';
 import { DEFAULT_DEPTOS_CONFIG } from '../utils/deptoUtils';
+import { useAuth } from '../context/AuthContext';
 
 /* eslint-disable react/prop-types */
 
 function CadLotacoes() {
+  const { can, currentUser } = useAuth();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -830,8 +832,12 @@ function CadLotacoes() {
                                 <td style={{ fontWeight: '500' }}><span className="badge badge-yellow">{unit.ais || '—'}</span></td>
                                 <td className="no-print" style={{ textAlign: 'center' }}>
                                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                    <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(unit)}>✏️</button>
-                                    <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(unit)}>🗑️</button>
+                                    {can('edit', 'cadastros', unit) && (
+                                      <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(unit)}>✏️</button>
+                                    )}
+                                    {can('delete', 'cadastros') && (
+                                      <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(unit)}>🗑️</button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -871,8 +877,12 @@ function CadLotacoes() {
                         <td style={{ fontWeight: '500' }}><span className="badge badge-yellow">{unit.ais || '—'}</span></td>
                         <td className="no-print" style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                            <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(unit)}>✏️</button>
-                            <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(unit)}>🗑️</button>
+                            {can('edit', 'cadastros', unit) && (
+                              <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(unit)}>✏️</button>
+                            )}
+                            {can('delete', 'cadastros') && (
+                              <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(unit)}>🗑️</button>
+                            )}
                           </div>
                         </td>
                       </tr>

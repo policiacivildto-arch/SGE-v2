@@ -11,6 +11,8 @@ import { apiService } from './services/api';
 import DashboardDetalhes from './components/DashboardDetalhes';
 import { GlockIcon, MunicoesIcon } from './components/CategoryIcons';
 import { getSavedDeptosList, getDeptoSigla, matchDeptoFlex, buildLotacaoToDeptoMap, normalizeStr } from './utils/deptoUtils';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import UserHeaderBar from './components/UserHeaderBar';
 import './index.css';
 
 const formatLocalDate = (dateStr) => {
@@ -142,12 +144,15 @@ function App() {
   };
 
   return (
-    <>
-      <Sidebar onNavigate={setActivePage} activePage={activePage} />
-      <main className="main-content">
-        {renderContent()}
-      </main>
-    </>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
+      <UserHeaderBar />
+      <div style={{ display: 'flex', flex: 1 }}>
+        <Sidebar onNavigate={setActivePage} activePage={activePage} />
+        <main className="main-content" style={{ flex: 1 }}>
+          {renderContent()}
+        </main>
+      </div>
+    </div>
   );
 }
 
@@ -1702,9 +1707,8 @@ function DashboardEstoqueView({ counts, onNavigate }) {
         </div>
       </div>
 
-      {/* Main Charts - Vertical Stack */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '24px' }}>
-        
+      {/* Top 2 Charts - Side by Side Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px', marginBottom: '24px' }}>
         {/* Category Donut Chart */}
         <InteractiveDonutChart 
           title="📁 Itens por Categoria (Clique para filtrar)" 
@@ -1713,15 +1717,17 @@ function DashboardEstoqueView({ counts, onNavigate }) {
           onSelect={setSelectedCategory} 
         />
         
-        {/* Status Bento Bento Grid */}
+        {/* Status Bento Grid */}
         <StatusGridCards 
           title="📈 Status do Item" 
           data={statusStats} 
           selectedValue={selectedStatus} 
           onSelect={setSelectedStatus} 
         />
+      </div>
 
-        {/* All Units Leaderboard Grid */}
+      {/* Leaderboard Chart */}
+      <div style={{ marginBottom: '24px' }}>
         <InteractiveLeaderboardGrid 
           title="📍 Carga por Unidade" 
           data={lotacaoStats} 
@@ -1741,159 +1747,6 @@ function DashboardEstoqueView({ counts, onNavigate }) {
           valueSuffix="un." 
         />
       </div>
-
-      {/* Drill-down Results Table Card */}
-      <div className="card" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#1a365d' }}>
-              📋 Itens Auditados no Filtro ({filteredDisplayUnits.length})
-            </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#718096' }}>
-              Exibindo registros consolidados da pesquisa atual. Clique nos gráficos acima para refinar.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="🔍 Buscar descrição, série, policial..."
-              style={{ padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e0', borderRadius: '4px', width: '250px' }}
-            />
-            <button className="btn btn-xs btn-outline" onClick={() => window.print()}>
-              🖨️ Imprimir Lista
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <p style={{ color: '#718096', textAlign: 'center', padding: '40px 0' }}>Buscando base de dados relacional...</p>
-        ) : filteredDisplayUnits.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#718096' }}>
-            <p style={{ fontSize: '14px', margin: 0 }}>Nenhum item em acervo atende ao conjunto de filtros selecionado.</p>
-            <button onClick={handleResetFilters} className="btn btn-xs btn-outline" style={{ marginTop: '12px' }}>
-              Resetar Filtros do Painel
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="table-wrap" style={{ margin: 0, maxHeight: '450px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f7fafc', zIndex: 10 }}>
-                <tr>
-                  <th>Descrição do Bem</th>
-                  <th>Categoria</th>
-                  <th>Patrimônio</th>
-                  <th>Número de Série</th>
-                  <th>Status / Estado</th>
-                  <th>Quantidade</th>
-                  <th>Localização Atual / Cautela</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedUnits.map((u, index) => {
-                  const itemStatusStyle = STATUS_DETAILS[u.status] || { color: '#718096', bg: '#edf2f7' };
-                  return (
-                    <tr key={u.id || index}>
-                      <td>
-                        <div style={{ fontWeight: '600', color: '#2d3748' }}>{u.descricao}</div>
-                        {u.policial_nome && (
-                          <div style={{ fontSize: '11px', color: '#4a5568', marginTop: '3px' }}>
-                            👤 Portador: <strong>{u.policial_nome}</strong> (Matrícula: {u.matricula || '—'})
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge badge-neutral" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
-                          {u.categoria}
-                        </span>
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{u.patrimonio}</td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: u.serie !== 'Lote / Sem Série' ? '#2b6cb0' : '#718096', fontSize: '12px' }}>
-                        {u.serie}
-                      </td>
-                      <td>
-                        <span 
-                          style={{ 
-                            fontSize: '10px', 
-                            fontWeight: 'bold', 
-                            color: itemStatusStyle.color, 
-                            backgroundColor: itemStatusStyle.bg,
-                            padding: '3px 8px',
-                            borderRadius: '12px',
-                            display: 'inline-block',
-                            border: `1px solid ${itemStatusStyle.color}40`
-                          }}
-                        >
-                          {STATUS_DETAILS[u.status]?.label || u.status}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 'bold', fontSize: '13px' }}>
-                        <div>{u.qtd || 1}</div>
-                        {(String(u.categoria || '').toLowerCase().includes('muniç') || String(u.categoria || '').toLowerCase().includes('munic')) && (
-                          <div style={{ fontSize: '10px', color: '#718096', fontWeight: 'normal', marginTop: '4px', lineHeight: '1.2' }}>
-                            📦 {getAmmunitionDetails(u.descricao, u.qtd || 1).lots} lote(s)<br />
-                            📥 {getAmmunitionDetails(u.descricao, u.qtd || 1).boxes} caixa(s)
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '12px', fontWeight: '500', color: '#2d3748' }}>{u.lotacao}</div>
-                        <div style={{ fontSize: '11px', color: '#718096' }}>{u.depto}</div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          
-          {totalPages > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: '16px',
-              paddingTop: '16px',
-              borderTop: '1px solid #edf2f7',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}>
-              <div style={{ fontSize: '13px', color: '#718096' }}>
-                Exibindo de <strong>{Math.min(filteredDisplayUnits.length, (currentPage - 1) * itemsPerPage + 1)}</strong> a{' '}
-                <strong>{Math.min(filteredDisplayUnits.length, currentPage * itemsPerPage)}</strong> de{' '}
-                <strong>{filteredDisplayUnits.length}</strong> itens
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="btn btn-xs btn-outline"
-                  style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-                >
-                  ◀ Anterior
-                </button>
-                <span style={{ fontSize: '13px', color: '#2d3748', display: 'flex', alignItems: 'center', padding: '0 8px', fontWeight: '500' }}>
-                  Página {currentPage} de {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="btn btn-xs btn-outline"
-                  style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  Próxima ▶
-                </button>
-              </div>
-            </div>
-          )}
-          </>
-        )}
-      </div>
-
-      {/* Removed Core Shortcuts Section to comply with read-only/no edit requirement */}
       </>
       )}
     </div>
@@ -3791,6 +3644,7 @@ function generatePageNumbers(current, total) {
 }
 
 function CadPoliciaisView() {
+  const { can } = useAuth();
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -4177,8 +4031,12 @@ function CadPoliciaisView() {
                     <td>{row.lotacao || '—'}</td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                        <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(row)}>✏️</button>
-                        <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(row)}>🗑️</button>
+                        {can('edit', 'cadastros', row) && (
+                          <button className="btn btn-xs btn-outline" onClick={() => handleOpenEdit(row)}>✏️</button>
+                        )}
+                        {can('delete', 'cadastros') && (
+                          <button className="btn btn-xs btn-danger" onClick={() => handleDeleteClick(row)}>🗑️</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -4504,6 +4362,7 @@ function CadPoliciaisView() {
 // VIEW: Cadastro de Fornecedor
 // ==========================================
 function CadFornecedorView() {
+  const { can } = useAuth();
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ nome: '', cnpj: '', contato: '', tel: '', email: '', categoria: '' });
@@ -4599,8 +4458,12 @@ function CadFornecedorView() {
                   <td>{r.categoria || '—'}</td>
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                      <button className="btn btn-xs btn-outline" onClick={() => handleEdit(r)} title="Editar fornecedor">✏️ Editar</button>
-                      <button className="btn btn-xs btn-outline" style={{ color: '#e53e3e', borderColor: '#feb2b2' }} onClick={() => handleDelete(r.id, r.nome)} title="Excluir fornecedor">🗑️</button>
+                      {can('edit', 'cadastros', r) && (
+                        <button className="btn btn-xs btn-outline" onClick={() => handleEdit(r)} title="Editar fornecedor">✏️ Editar</button>
+                      )}
+                      {can('delete', 'cadastros') && (
+                        <button className="btn btn-xs btn-outline" style={{ color: '#e53e3e', borderColor: '#feb2b2' }} onClick={() => handleDelete(r.id, r.nome)} title="Excluir fornecedor">🗑️</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -4637,6 +4500,7 @@ function CadFornecedorView() {
 // VIEW: Cadastro de Menus Suspensos
 // ==========================================
 function CadMenusView() {
+  const { can } = useAuth();
   const [rows, setRows] = useState([]);
   const [grupo, setGrupo] = useState('armas-marcas');
   const [valor, setValor] = useState('');
@@ -4700,7 +4564,9 @@ function CadMenusView() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
             <div className="form-group"><label>Chave / Valor *</label><input value={valor} onChange={e => setValor(e.target.value)} placeholder="Ex.: GLOCK" /></div>
             <div className="form-group"><label>Exibição / Rótulo *</label><input value={rotulo} onChange={e => setRotulo(e.target.value)} placeholder="Ex.: Glock G17" /></div>
-            <button className="btn btn-primary" onClick={handleAdd}>Adicionar</button>
+            {can('add', 'cadastros') && (
+              <button className="btn btn-primary" onClick={handleAdd}>Adicionar</button>
+            )}
           </div>
         </div>
 
@@ -4717,7 +4583,11 @@ function CadMenusView() {
                     <tr key={r.id}>
                       <td style={{ fontFamily: 'monospace' }}>{r.valor}</td>
                       <td>{r.rotulo}</td>
-                      <td style={{ textAlign: 'center' }}><button className="btn btn-xs btn-danger" onClick={() => handleDelete(r.id)}>Excluir</button></td>
+                      <td style={{ textAlign: 'center' }}>
+                        {can('delete', 'cadastros') && (
+                          <button className="btn btn-xs btn-danger" onClick={() => handleDelete(r.id)}>Excluir</button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -6685,14 +6555,137 @@ function RelatoriosView() {
     return events;
   }, [selectedItemForAudit, cautelas, searchInventario, allBens]);
 
-  // Perform dynamic filtering client-side for GENERAL Auditoria
-  const filteredData = React.useMemo(() => {
-    if (!hasSearched) return { cautelas: [] };
+  // Compila o histórico global unificado de movimentações (Entradas, Cautelas, Devoluções, Manutenção, Destruição)
+  const allGlobalMovements = React.useMemo(() => {
+    const list = [];
 
-    // If an item is selected for auditing, we filter general history specifically by that item to keep views unified
+    // 1. Entradas de Estoque (a partir do cadastro de itens no inventário)
+    results.forEach(item => {
+      list.push({
+        id: `ent-${item.id}`,
+        numero: item.numero_nota_fiscal ? `NF: ${item.numero_nota_fiscal}` : (item.numero_empenho ? `EMP: ${item.numero_empenho}` : `CAD-${String(item.id).slice(0, 6).toUpperCase()}`),
+        data_evento: item.data_entrada || item.data_aquisicao || item.criado_em || item.created_at || new Date().toISOString(),
+        tipo_evento: 'Entrada Inicial no Estoque',
+        tipo: 'Entrada',
+        policial_nome: 'Acervo da Armaria / Fornecedor',
+        matricula: 'ESTOQUE',
+        cpf: '—',
+        lotacao: item.lotacao || 'Estoque Central da Armaria',
+        depto: item.depto || item.departamento || 'Armaria',
+        categoria: item.categoria || '—',
+        item_desc: `${item.descricao || ''} ${item.marca || ''} ${item.modelo || ''}`.trim() || item.item_desc || 'Item de Estoque',
+        serie: item.serie || (Number(item.qtd_total || 1) > 1 ? `Lote (${item.qtd_total} un.)` : 'Sem Série'),
+        detalhes: `Entrada e cadastramento do item no acervo. NF: ${item.numero_nota_fiscal || '—'} | Empenho: ${item.numero_empenho || '—'} | Qtd: ${item.qtd_total || 1} un.`,
+        originalItem: item
+      });
+    });
+
+    // 2. Cautelas e Devoluções
+    cautelas.forEach(c => {
+      // Evento de Cautela
+      list.push({
+        id: `caut-${c.id}`,
+        numero: c.numero || `CAUT-${c.id}`,
+        data_evento: c.data_cautela || c.data_saida || c.criado_em || c.data,
+        tipo_evento: c.status === 'Substituida' ? 'Substituição / Transferência de Carga' : 'Emissão / Retirada de Cautela',
+        tipo: 'Cautela',
+        policial_nome: c.policial_nome || '—',
+        matricula: c.matricula || '—',
+        cpf: c.cpf || '—',
+        lotacao: c.lotacao || '—',
+        depto: c.depto || c.departamento || '—',
+        categoria: c.categoria || '—',
+        item_desc: c.item_desc || c.item || '—',
+        serie: c.serie || '—',
+        detalhes: c.obs ? `Cautela registrada. Observação: ${c.obs}` : `Material cautelado em carga para o policial ${c.policial_nome}.`,
+        originalCautela: c,
+        status_cautela: c.status
+      });
+
+      // Evento de Devolução (se devolvida ou com data de devolução)
+      if (c.status === 'Devolvida' || c.data_devolucao || c.condicao_dev) {
+        list.push({
+          id: `dev-${c.id}`,
+          numero: `${c.numero || 'DEV'}-DEV`,
+          data_evento: c.data_devolucao || c.data_dev || c.atualizado_em || c.criado_em,
+          tipo_evento: c.condicao_dev === 'Avaria' || c.condicao_dev === 'Manutenção' ? 'Devolução com Avaria / Envio p/ Oficina' : 'Devolução / Baixa de Cautela',
+          tipo: 'Devolução',
+          policial_nome: c.policial_nome || '—',
+          matricula: c.matricula || '—',
+          cpf: c.cpf || '—',
+          lotacao: c.lotacao || '—',
+          depto: c.depto || c.departamento || '—',
+          categoria: c.categoria || '—',
+          item_desc: c.item_desc || c.item || '—',
+          serie: c.serie || '—',
+          detalhes: c.condicao_dev ? `Devolução de material. Condição: ${c.condicao_dev}. ${c.obs_dev ? 'Obs: ' + c.obs_dev : ''}` : 'Material devolvido à armaria e descarregado.',
+          originalCautela: c,
+          status_cautela: 'Devolvida'
+        });
+      }
+    });
+
+    // 3. Manutenção (em bens individuais)
+    allBens.forEach(b => {
+      const st = String(b.status || '').toLowerCase();
+      if (st === 'em reparo' || st === 'manutenção' || st === 'oficina' || b.data_manutencao) {
+        list.push({
+          id: `manut-${b.id}`,
+          numero: `MANUT-${String(b.id).slice(0, 6).toUpperCase()}`,
+          data_evento: b.data_manutencao || b.created_at || new Date().toISOString(),
+          tipo_evento: 'Envio para Manutenção / Oficina',
+          tipo: 'Manutenção',
+          policial_nome: 'Oficina da Armaria / Manutenção Técnica',
+          matricula: 'TÉC-ARM',
+          cpf: '—',
+          lotacao: 'Oficina Central da Armaria',
+          depto: 'Armaria / Manutenção',
+          categoria: b.categoria || 'Equipamentos',
+          item_desc: b.descricao || b.item_desc || 'Item em Manutenção',
+          serie: b.serie || b.patrimonio || '—',
+          detalhes: `Encaminhado para reparo/manutenção técnica. ${b.obs ? 'Obs: ' + b.obs : ''}`,
+          originalBem: b
+        });
+      }
+
+      // 4. Baixa Definitiva / Destruição
+      const isBaixado = st === 'baixado' || st === 'destruído' || st === 'destruido' || st === 'inservível' || st === 'inservivel' || st === 'descarte' || !!b.data_baixa || !!b.destruicao_data;
+      if (isBaixado) {
+        list.push({
+          id: `destr-${b.id}`,
+          numero: b.destruicao_termo ? `TERMO: ${b.destruicao_termo}` : (b.nup_baixa ? `NUP: ${b.nup_baixa}` : `BAIXA-${String(b.id).slice(0, 6).toUpperCase()}`),
+          data_evento: b.destruicao_data || b.data_baixa || b.updated_at || new Date().toISOString(),
+          tipo_evento: 'Baixa Definitiva / Destruição',
+          tipo: 'Destruição',
+          policial_nome: 'Comissão de Baixa e Destruição',
+          matricula: 'COMIS-BAIXA',
+          cpf: '—',
+          lotacao: 'Estoque Central / Comissão de Descarte',
+          depto: 'Armaria',
+          categoria: b.categoria || 'Equipamentos',
+          item_desc: b.descricao || b.item_desc || 'Item Baixado/Destruído',
+          serie: b.serie || b.patrimonio || '—',
+          detalhes: `Saída definitiva do acervo por Baixa Definitiva / Destruição. ${b.laudo_tecnico ? 'Laudo: ' + b.laudo_tecnico + '.' : ''} ${b.motivo_baixa ? 'Motivo: ' + b.motivo_baixa + '.' : ''}`,
+          originalBem: b
+        });
+      }
+    });
+
+    // Ordenação cronológica decrescente (mais recentes primeiro)
+    list.sort((a, b) => new Date(b.data_evento).getTime() - new Date(a.data_evento).getTime());
+
+    return list;
+  }, [results, cautelas, allBens]);
+
+  // Perform dynamic filtering client-side for GENERAL Auditoria & Historical Movements
+  const filteredData = React.useMemo(() => {
+    if (!hasSearched) return { cautelas: [], movements: [] };
+
+    // If an item is selected for auditing, use itemCautelasHistory directly
     if (selectedItemForAudit) {
       return {
-        cautelas: itemCautelasHistory
+        cautelas: itemCautelasHistory.filter(h => h.originalCautela).map(h => h.originalCautela),
+        movements: itemCautelasHistory
       };
     }
 
@@ -6705,74 +6698,83 @@ function RelatoriosView() {
         .filter(t => t.length > 0);
     }
 
-    // 2. Filter Cautelas
-    const finalCautelas = cautelas.filter(c => {
+    // 2. Filter Movements
+    const finalMovements = allGlobalMovements.filter(m => {
       // Batch mode
       if (isBatchSearch && batchTokens.length > 0) {
-        const cSerie = String(c.serie || '').toLowerCase().trim();
-        const cMatricula = String(c.matricula || '').toLowerCase().trim();
-        const cPolicialName = String(c.policial_nome || '').toLowerCase().trim();
-        const cNumero = String(c.numero || '').toLowerCase().trim();
+        const mSerie = String(m.serie || '').toLowerCase().trim();
+        const mMatricula = String(m.matricula || '').toLowerCase().trim();
+        const mPolicialName = String(m.policial_nome || '').toLowerCase().trim();
+        const mNumero = String(m.numero || '').toLowerCase().trim();
 
         const matchesBatch = batchTokens.some(token => 
-          cSerie.includes(token) || 
-          cMatricula.includes(token) || 
-          cPolicialName.includes(token) ||
-          cNumero.includes(token)
+          mSerie.includes(token) || 
+          mMatricula.includes(token) || 
+          mPolicialName.includes(token) ||
+          mNumero.includes(token)
         );
         if (!matchesBatch) return false;
       } else {
         // Normal Filters
         if (searchPolicial.trim()) {
           const q = searchPolicial.toLowerCase().trim();
-          const pName = String(c.policial_nome || '').toLowerCase();
-          const pMat = String(c.matricula || '').toLowerCase();
-          const pCpf = String(c.cpf || '').toLowerCase();
+          const pName = String(m.policial_nome || '').toLowerCase();
+          const pMat = String(m.matricula || '').toLowerCase();
+          const pCpf = String(m.cpf || '').toLowerCase();
           if (!pName.includes(q) && !pMat.includes(q) && !pCpf.includes(q)) return false;
         }
 
         if (searchSerie.trim()) {
           const q = searchSerie.toLowerCase().trim();
-          const itemDesc = String(c.item_desc || '').toLowerCase();
-          const itemSerie = String(c.serie || '').toLowerCase();
-          if (!itemDesc.includes(q) && !itemSerie.includes(q)) return false;
+          const itemDesc = String(m.item_desc || '').toLowerCase();
+          const itemSerie = String(m.serie || '').toLowerCase();
+          const itemNum = String(m.numero || '').toLowerCase();
+          const itemDet = String(m.detalhes || '').toLowerCase();
+          if (!itemDesc.includes(q) && !itemSerie.includes(q) && !itemNum.includes(q) && !itemDet.includes(q)) return false;
         }
       }
 
       // Lotação / Unidade Filter
       if (lotacaoFilter) {
         const filterVal = lotacaoFilter.toLowerCase().trim();
-        const itemLot = String(c.lotacao || '').toLowerCase().trim();
+        const itemLot = String(m.lotacao || '').toLowerCase().trim();
         if (itemLot !== filterVal) return false;
       }
 
       // Departamento Filter
       if (deptoFilter) {
-        const itemDepto = c.depto || c.departamento || relatorioCautelaLotacaoMap.get(normalizeStr(c.lotacao));
+        const itemDepto = m.depto || relatorioCautelaLotacaoMap.get(normalizeStr(m.lotacao));
         if (!matchDeptoFlex(itemDepto, deptoFilter)) return false;
       }
 
       // Categoria Filter
       if (categoriaFilter) {
         const filterVal = categoriaFilter.toLowerCase().trim();
-        const itemCat = String(c.categoria || '').toLowerCase().trim();
+        const itemCat = String(m.categoria || '').toLowerCase().trim();
         if (!itemCat.includes(filterVal) && !filterVal.includes(itemCat)) return false;
       }
 
-      // Status Cautela Filter
+      // Status / Tipo Movimentação Filter
       if (statusCautelaFilter) {
         const filterVal = statusCautelaFilter.toLowerCase().trim();
-        const cStatus = String(c.status || '').toLowerCase().trim();
-        // Support both "Ativa" and "Em Uso"
         if (filterVal === 'ativa' || filterVal === 'em uso') {
-          if (cStatus !== 'ativa' && cStatus !== 'em uso') return false;
+          if (m.tipo !== 'Cautela' || (m.status_cautela && m.status_cautela !== 'Ativa' && m.status_cautela !== 'Em Uso')) return false;
+        } else if (filterVal === 'devolvida') {
+          if (m.tipo !== 'Devolução') return false;
+        } else if (filterVal === 'entrada') {
+          if (m.tipo !== 'Entrada') return false;
+        } else if (filterVal === 'manutenção' || filterVal === 'manutencao') {
+          if (m.tipo !== 'Manutenção') return false;
+        } else if (filterVal === 'destruição' || filterVal === 'destruicao') {
+          if (m.tipo !== 'Destruição') return false;
         } else {
-          if (cStatus !== filterVal) return false;
+          const mTipo = String(m.tipo || '').toLowerCase();
+          if (mTipo !== filterVal) return false;
         }
       }
 
       // Period Filter
-      const itemDateStr = c.criado_em || c.data || '';
+      const itemDateStr = m.data_evento || '';
       if (itemDateStr) {
         const itemTime = new Date(itemDateStr).getTime();
         if (dateFrom) {
@@ -6788,21 +6790,27 @@ function RelatoriosView() {
       return true;
     });
 
+    const finalCautelas = finalMovements.filter(m => m.originalCautela).map(m => m.originalCautela);
+
     return {
+      movements: finalMovements,
       cautelas: finalCautelas
     };
-  }, [cautelas, searchPolicial, searchSerie, lotacaoFilter, deptoFilter, categoriaFilter, statusCautelaFilter, dateFrom, dateTo, isBatchSearch, batchText, hasSearched, selectedItemForAudit, itemCautelasHistory]);
+  }, [allGlobalMovements, searchPolicial, searchSerie, lotacaoFilter, deptoFilter, categoriaFilter, statusCautelaFilter, dateFrom, dateTo, isBatchSearch, batchText, hasSearched, selectedItemForAudit, itemCautelasHistory]);
 
   // Aggregate stats from the filtered historical data
   const stats = React.useMemo(() => {
-    const totalCautelas = filteredData.cautelas.length;
-    const ativas = filteredData.cautelas.filter(c => c.status === 'Ativa' || c.status === 'Em Uso').length;
-    const devolvidas = filteredData.cautelas.filter(c => c.status === 'Devolvida').length;
+    const totalMovements = filteredData.movements.length;
+    const ativas = filteredData.movements.filter(m => m.tipo === 'Cautela' && (m.status_cautela === 'Ativa' || m.status_cautela === 'Em Uso')).length;
+    const devolvidas = filteredData.movements.filter(m => m.tipo === 'Devolução').length;
+    const entradas = filteredData.movements.filter(m => m.tipo === 'Entrada').length;
 
     return {
-      totalCautelas,
+      totalMovements,
+      totalCautelas: filteredData.cautelas.length,
       ativas,
-      devolvidas
+      devolvidas,
+      entradas
     };
   }, [filteredData]);
 
@@ -7510,15 +7518,18 @@ function RelatoriosView() {
                   </div>
 
                   <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
-                    <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Situação da Carga</label>
+                    <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Tipo / Situação de Movimentação</label>
                     <select
                       value={statusCautelaFilter}
                       onChange={e => setStatusCautelaFilter(e.target.value)}
                       style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', fontSize: '13px', boxSizing: 'border-box' }}
                     >
-                      <option value="">Todas (Em Uso e Devolvidas)</option>
-                      <option value="Ativa">Somente Em Uso / Ativas</option>
-                      <option value="Devolvida">Somente Devolvidas</option>
+                      <option value="">Todas as Movimentações (Entrada, Cautela, Devolução, etc.)</option>
+                      <option value="Entrada">📥 Somente Entradas em Estoque</option>
+                      <option value="Ativa">📤 Somente Cautelas Ativas (Em Uso)</option>
+                      <option value="Devolvida">↩️ Somente Devoluções de Cautela</option>
+                      <option value="Manutenção">🔧 Somente Em Manutenção / Oficina</option>
+                      <option value="Destruição">💥 Somente Baixas Definitivas / Destruição</option>
                     </select>
                   </div>
 
@@ -7617,106 +7628,166 @@ function RelatoriosView() {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #edf2f7', paddingBottom: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1a365d' }}>
-                  📜 Histórico Geral de Cautelas / Cargas ({filteredData.cautelas.length})
-                </h3>
-                <button className="btn btn-xs btn-outline" onClick={() => handleOpenPrintReport('historico-geral', 'Histórico Geral de Cautelas / Cargas', { cautelas: filteredData.cautelas })}>🖨️ Imprimir Histórico Geral</button>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1a365d' }}>
+                    📜 Histórico Geral de Movimentações ({filteredData.movements.length})
+                  </h3>
+                  <span style={{ fontSize: '12px', color: '#718096' }}>
+                    Exibindo todas as movimentações de acervo: entradas, cautelas, devoluções, manutenções e baixas/destruições.
+                  </span>
+                </div>
+                <button className="btn btn-xs btn-outline" onClick={() => handleOpenPrintReport('historico-geral', 'Histórico Geral de Movimentações e Cargas', { movements: filteredData.movements, cautelas: filteredData.cautelas })}>🖨️ Imprimir Histórico Geral</button>
               </div>
 
-              {/* General Cautelas Table */}
+              {/* General Movements Table */}
               <div className="table-wrap" style={{ margin: 0 }}>
-                {filteredData.cautelas.length > 0 ? (
+                {filteredData.movements.length > 0 ? (
                   <table>
                     <thead>
                       <tr>
-                        <th>Nº Cautela</th>
-                        <th>Data Cautela</th>
-                        <th>Policial / Matrícula</th>
-                        <th>Lotação / Depto</th>
-                        <th>Item Cautelado</th>
+                        <th>Nº Registro / Termo</th>
+                        <th>Data Evento</th>
+                        <th>Tipo de Movimentação</th>
+                        <th>Policial / Agente / Responsável</th>
+                        <th>Lotação / Unidade</th>
+                        <th>Item / Descrição</th>
                         <th>Nº de Série</th>
-                        <th>Situação</th>
-                        <th>Devolvido em</th>
+                        <th>Detalhes / Histórico</th>
                         <th style={{ textAlign: 'center' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredData.cautelas.map(c => (
-                        <tr 
-                          key={c.id}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setSelectedCautelaModal(c);
-                            const matchItem = results.find(r => String(r.id) === String(c.item_id || c.item));
-                            if (matchItem) setSelectedItemForAudit(matchItem);
-                          }}
-                          title="Clique em qualquer lugar da linha para abrir os detalhes desta cautela"
-                        >
-                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
-                            <button
-                              className="btn btn-xs btn-outline"
-                              style={{ padding: '2px 6px', fontSize: '11px', fontWeight: 'bold', color: '#2b6cb0', borderColor: '#bee3f8', backgroundColor: '#ebf8ff', cursor: 'pointer' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCautelaModal(c);
-                                const matchItem = results.find(r => String(r.id) === String(c.item_id || c.item));
+                      {filteredData.movements.map(m => {
+                        let badgeBg = '#edf2f7';
+                        let badgeColor = '#2d3748';
+                        let badgeBorder = '#cbd5e0';
+                        let labelTxt = m.tipo_evento || m.tipo;
+
+                        if (m.tipo === 'Entrada') {
+                          badgeBg = '#f0fdf4';
+                          badgeColor = '#15803d';
+                          badgeBorder = '#bbf7d0';
+                          labelTxt = '📥 Entrada Estoque';
+                        } else if (m.tipo === 'Cautela') {
+                          badgeBg = '#eff6ff';
+                          badgeColor = '#1d4ed8';
+                          badgeBorder = '#bfdbfe';
+                          labelTxt = m.status_cautela === 'Substituida' ? '🔄 Transferência' : '📤 Cautela / Carga';
+                        } else if (m.tipo === 'Devolução') {
+                          badgeBg = '#f0fdf4';
+                          badgeColor = '#166534';
+                          badgeBorder = '#86efac';
+                          labelTxt = '↩️ Devolução';
+                        } else if (m.tipo === 'Manutenção') {
+                          badgeBg = '#fff7ed';
+                          badgeColor = '#c2410c';
+                          badgeBorder = '#fed7aa';
+                          labelTxt = '🔧 Manutenção';
+                        } else if (m.tipo === 'Destruição') {
+                          badgeBg = '#fef2f2';
+                          badgeColor = '#b91c1c';
+                          badgeBorder = '#fecaca';
+                          labelTxt = '💥 Baixa / Destruição';
+                        }
+
+                        return (
+                          <tr 
+                            key={m.id}
+                            style={{ cursor: m.originalCautela ? 'pointer' : 'default' }}
+                            onClick={() => {
+                              if (m.originalCautela) {
+                                setSelectedCautelaModal(m.originalCautela);
+                                const matchItem = results.find(r => String(r.id) === String(m.originalCautela.item_id || m.originalCautela.item));
                                 if (matchItem) setSelectedItemForAudit(matchItem);
-                              }}
-                            >
-                              {c.numero} 🔎
-                            </button>
-                          </td>
-                          <td>{formatLocalDate(c.data_cautela || c.criado_em)}</td>
-                          <td>
-                            <div><strong style={{ color: '#1a365d' }}>👤 {c.policial_nome}</strong></div>
-                            <div style={{ fontSize: '11px', color: '#718096' }}>Matrícula: {c.matricula || '—'}</div>
-                          </td>
-                          <td>
-                            <div>{c.lotacao || '—'}</div>
-                            <div style={{ fontSize: '11px', color: '#718096' }}>Depto: {c.depto || '—'}</div>
-                          </td>
-                          <td>
-                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#2b6cb0', fontWeight: 'bold', display: 'block' }}>
-                              {c.categoria}
-                            </span>
-                            <strong style={{ color: '#2b6cb0', textDecoration: 'underline' }}>{c.item_desc}</strong>
-                          </td>
-                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#e53e3e' }}>
-                            {c.serie || '—'}
-                          </td>
-                          <td>
-                            <span className={`badge ${c.status === 'Ativa' || c.status === 'Em Uso' ? 'badge-red' : 'badge-green'}`}>
-                              {c.status === 'Ativa' || c.status === 'Em Uso' ? 'EM USO' : 'DEVOLVIDA'}
-                            </span>
-                          </td>
-                          <td>
-                            {c.status === 'Devolvida' ? (
-                              <div>
-                                <div>{formatLocalDate(c.data_devolucao || c.atualizado_em)}</div>
-                                {c.condicao_dev && <div style={{ fontSize: '10px', color: '#dd6b20' }}>Condição: {c.condicao_dev}</div>}
-                              </div>
-                            ) : '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              className="btn btn-xs btn-primary"
-                              style={{ padding: '3px 8px', fontWeight: 'bold' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCautelaModal(c);
-                                const matchItem = results.find(r => String(r.id) === String(c.item_id || c.item));
-                                if (matchItem) setSelectedItemForAudit(matchItem);
-                              }}
-                            >
-                              🔎 Ver Ficha
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                              }
+                            }}
+                          >
+                            <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                              {m.originalCautela ? (
+                                <button
+                                  className="btn btn-xs btn-outline"
+                                  style={{ padding: '2px 6px', fontSize: '11px', fontWeight: 'bold', color: '#2b6cb0', borderColor: '#bee3f8', backgroundColor: '#ebf8ff', cursor: 'pointer' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCautelaModal(m.originalCautela);
+                                    const matchItem = results.find(r => String(r.id) === String(m.originalCautela.item_id || m.originalCautela.item));
+                                    if (matchItem) setSelectedItemForAudit(matchItem);
+                                  }}
+                                >
+                                  {m.numero} 🔎
+                                </button>
+                              ) : (
+                                <span style={{ padding: '2px 6px', fontSize: '11px', backgroundColor: '#f1f5f9', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
+                                  {m.numero}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: '12px' }}>{formatLocalDate(m.data_evento)}</td>
+                            <td>
+                              <span style={{ 
+                                display: 'inline-block',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                backgroundColor: badgeBg,
+                                color: badgeColor,
+                                border: `1px solid ${badgeBorder}`
+                              }}>
+                                {labelTxt}
+                              </span>
+                            </td>
+                            <td>
+                              <div><strong style={{ color: '#1a365d' }}>👤 {m.policial_nome}</strong></div>
+                              {m.matricula && m.matricula !== '—' && (
+                                <div style={{ fontSize: '11px', color: '#718096' }}>Matrícula: {m.matricula}</div>
+                              )}
+                            </td>
+                            <td>
+                              <div>{m.lotacao || '—'}</div>
+                              {m.depto && m.depto !== '—' && (
+                                <div style={{ fontSize: '11px', color: '#718096' }}>Depto: {m.depto}</div>
+                              )}
+                            </td>
+                            <td>
+                              {m.categoria && m.categoria !== '—' && (
+                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#2b6cb0', fontWeight: 'bold', display: 'block' }}>
+                                  {m.categoria}
+                                </span>
+                              )}
+                              <strong style={{ color: '#2d3748' }}>{m.item_desc}</strong>
+                            </td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: m.serie !== 'Sem Série' && m.serie !== '—' ? '#e53e3e' : '#718096' }}>
+                              {m.serie || '—'}
+                            </td>
+                            <td style={{ fontSize: '12px', color: '#4a5568', maxWidth: '280px', lineHeight: '1.3' }}>
+                              {m.detalhes}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {m.originalCautela ? (
+                                <button 
+                                  className="btn btn-xs btn-primary"
+                                  style={{ padding: '3px 8px', fontWeight: 'bold' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCautelaModal(m.originalCautela);
+                                    const matchItem = results.find(r => String(r.id) === String(m.originalCautela.item_id || m.originalCautela.item));
+                                    if (matchItem) setSelectedItemForAudit(matchItem);
+                                  }}
+                                >
+                                  🔎 Ver Cautela
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '11px', color: '#a0aec0' }}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : (
-                  <p style={{ textAlign: 'center', color: '#718096', padding: '24px 0', margin: 0 }}>Nenhuma cautela em aberto ou devolvida correspondente a estes filtros.</p>
+                  <p style={{ textAlign: 'center', color: '#718096', padding: '24px 0', margin: 0 }}>Nenhuma movimentação correspondente a estes filtros.</p>
                 )}
               </div>
             </div>
@@ -8141,34 +8212,36 @@ function RelatoriosView() {
                 </div>
               )}
 
-              {/* HISTORICO GERAL */}
+              {/* HISTORICO GERAL DE MOVIMENTAÇÕES */}
               {printModalReport.type === 'historico-geral' && (
                 <div>
                   <div style={{ marginBottom: '10px', fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>
-                    Total de Registros de Cautelas e Cargas Exibidos: {printModalReport.data.cautelas?.length || 0}
+                    Total de Registros de Movimentações e Cargas Exibidos: {(printModalReport.data.movements || printModalReport.data.cautelas || []).length}
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
                     <thead>
                       <tr style={{ background: '#f1f5f9', color: '#1e293b' }}>
-                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Nº Cautela</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Nº Registro</th>
                         <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Data</th>
-                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Policial / Matrícula</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Tipo Evento</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Policial / Responsável</th>
                         <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Lotação / Depto</th>
-                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Item Cautelado</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Item / Descrição</th>
                         <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Nº Série</th>
-                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Situação</th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '8px' }}>Detalhes / Observações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(printModalReport.data.cautelas || []).map((c, idx) => (
+                      {((printModalReport.data.movements && printModalReport.data.movements.length > 0) ? printModalReport.data.movements : (printModalReport.data.cautelas || [])).map((m, idx) => (
                         <tr key={idx} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}>{c.numero || '—'}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{formatLocalDate(c.data_cautela || c.data_saida)}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{c.policial_nome}<br/><span style={{ fontSize: '10px', color: '#64748b' }}>Matr: {c.matricula || '—'}</span></td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{c.lotacao || '—'}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{c.item_desc || c.item}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>{c.serie || 's/n'}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontWeight: 'bold' }}>{c.status}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}>{m.numero || '—'}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{formatLocalDate(m.data_evento || m.data_cautela || m.data_saida)}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontWeight: 'bold' }}>{m.tipo_evento || m.tipo || m.status}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{m.policial_nome || '—'}<br/><span style={{ fontSize: '10px', color: '#64748b' }}>Matr: {m.matricula || '—'}</span></td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{m.lotacao || '—'}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px' }}>{m.item_desc || m.item || '—'}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>{m.serie || 's/n'}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '8px', fontSize: '10px' }}>{m.detalhes || m.obs || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -8263,5 +8336,9 @@ function RelatoriosView() {
 
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  createRoot(rootEl).render(<App />);
+  createRoot(rootEl).render(
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
 }

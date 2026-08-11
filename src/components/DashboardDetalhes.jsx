@@ -1221,36 +1221,43 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
       <div style={{ marginBottom: '24px' }}>
         {activeCategory === 'Armas' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <HorizontalBarChart 
-              title="🏢 Armas por Departamento / Lotação" 
-              dataMap={categoryAnalyticsData.deptoMap} 
-              barColor="#1a365d" 
-              filterType="depto"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <DonutPieChart 
-              data={currentCategoryStatusChartData} 
-              title="🍕 Armas por Status" 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🔫 Quantidades Totais por Modelo" 
-              dataMap={categoryAnalyticsData.modelMap} 
-              barColor="#2b6cb0" 
-              filterType="model"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🎯 Tipo de Arma" 
-              dataMap={categoryAnalyticsData.typeMap} 
-              barColor="#319795" 
-              filterType="type"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
+            {/* Par 1: Departamento/Lotação e Status lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🏢 Armas por Departamento / Lotação" 
+                dataMap={categoryAnalyticsData.deptoMap} 
+                barColor="#1a365d" 
+                filterType="depto"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <DonutPieChart 
+                data={currentCategoryStatusChartData} 
+                title="🍕 Armas por Status" 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 2: Totais por Modelo e Tipo de Arma lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🔫 Totais por Modelo" 
+                dataMap={categoryAnalyticsData.modelMap} 
+                barColor="#2b6cb0" 
+                filterType="model"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <HorizontalBarChart 
+                title="🎯 Tipo de Arma" 
+                dataMap={categoryAnalyticsData.typeMap} 
+                barColor="#319795" 
+                filterType="type"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
           </div>
         )}
 

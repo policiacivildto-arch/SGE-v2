@@ -177,6 +177,12 @@ export interface Cautela extends BaseEntity {
   serie?: string;
   assinatura_digital?: string;
   assinatura_dev?: string;
+  token_confirmacao?: string;
+  token_confirmacao_dev?: string;
+  email_policial?: string;
+  hash_assinatura?: string;
+  hash_assinatura_dev?: string;
+  created_by?: string;
 }
 
 export interface Movimento extends BaseEntity {
@@ -611,6 +617,14 @@ class ServerDb {
     });
 
     console.log("Banco de dados semeado com sucesso!");
+  }
+
+  public getAll<T = any>(collectionKey: keyof DatabaseSchema): T[] {
+    return (this.data[collectionKey] || []) as T[];
+  }
+
+  public getCollection<T = any>(collectionKey: keyof DatabaseSchema): T[] {
+    return (this.data[collectionKey] || []) as T[];
   }
 
   // Generic Query, Search, Filter and Ordering helper

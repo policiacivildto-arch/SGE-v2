@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { apiService } from '../services/api';
 import Modal from '../components/Modal';
 import { PECAS_GLOCK_LIST, PECAS_SIG_SAUER_LIST, getSubtiposForCalibre, extractSubtipoFromDesc } from '../constants/inventoryData';
+import { useAuth } from '../context/AuthContext';
 
 export const formatCurrencyInput = (val) => {
   if (val === null || val === undefined) return '';
@@ -223,6 +224,7 @@ const getGunSpecs = (tipoVal, marcaVal, modeloVal, calibreVal) => {
 };
 
 function CadItensCompra() {
+  const { can, currentUser } = useAuth();
   const [compras, setCompras] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
   const [inventoryItens, setInventoryItens] = useState([]);

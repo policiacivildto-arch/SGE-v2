@@ -5,6 +5,7 @@ import { getMenuOptions } from '../services/menuOptions';
 import Modal from '../components/Modal';
 import { GlockIcon } from '../components/CategoryIcons';
 import { getSavedDeptosList, matchDeptoFlex } from '../utils/deptoUtils';
+import { useAuth } from '../context/AuthContext';
 
 /* eslint-disable react/prop-types */
 
@@ -37,6 +38,7 @@ function isSameMatricula(val1, val2) {
 }
 
 function NovoServico({ onNavigate }) {
+	const { can, currentUser } = useAuth();
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');

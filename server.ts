@@ -6,20 +6,42 @@ import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
 
 let mailTransporter: any = null;
+let isSmtpConfigured = false;
 
 async function getMailTransporter() {
-  if (mailTransporter) return mailTransporter;
+  if (mailTransporter) return { transporter: mailTransporter, isSmtpConfigured };
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    isSmtpConfigured = true;
+    const isOAuth = !!(process.env.SMTP_OAUTH_CLIENT_ID && process.env.SMTP_OAUTH_CLIENT_SECRET);
+    
+    const authConfig: any = isOAuth ? {
+      type: 'OAuth2',
+      user: process.env.SMTP_USER,
+      clientId: process.env.SMTP_OAUTH_CLIENT_ID,
+      clientSecret: process.env.SMTP_OAUTH_CLIENT_SECRET,
+      refreshToken: process.env.SMTP_OAUTH_REFRESH_TOKEN,
+    } : {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    };
+
+    const host = process.env.SMTP_HOST;
+    const port = Number(process.env.SMTP_PORT || 587);
+    const isSecure = process.env.SMTP_SECURE === "true";
+
     mailTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+      host,
+      port,
+      secure: isSecure, // false for port 587 with STARTTLS
+      requireTLS: port === 587 || port === 25,
+      auth: authConfig,
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: process.env.SMTP_IGNORE_TLS_ERRORS === "true" ? false : true
+      }
     });
   } else {
+    isSmtpConfigured = false;
     try {
       const testAccount = await nodemailer.createTestAccount();
       mailTransporter = nodemailer.createTransport({
@@ -37,7 +59,7 @@ async function getMailTransporter() {
       });
     }
   }
-  return mailTransporter;
+  return { transporter: mailTransporter, isSmtpConfigured };
 }
 
 function generateDigitalSignatureSvg(policialNome: string, matricula: string, token: string, dataConfirmacao: string, isDevolucao: boolean = false) {
@@ -106,7 +128,7 @@ async function sendCautelaEmailConfirmation(cautela: any, reqHost: string) {
     };
   }
 
-  const transporter = await getMailTransporter();
+  const { transporter, isSmtpConfigured } = await getMailTransporter();
 
   const mailOptions = {
     from: '"SGA - Armaria & Material Bélico" <no-reply@sga.ce.gov.br>',
@@ -159,10 +181,10 @@ async function sendCautelaEmailConfirmation(cautela: any, reqHost: string) {
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("E-mail de cautela enviado:", info.messageId || info);
-    return { success: true, confirmUrl, email: cautela.email_policial, token };
+    return { success: true, is_smtp_configured: isSmtpConfigured, confirmUrl, email: cautela.email_policial, token };
   } catch (err: any) {
     console.error("Erro ao enviar e-mail de confirmação:", err);
-    return { success: false, confirmUrl, email: cautela.email_policial, token, error: err.message };
+    return { success: false, is_smtp_configured: isSmtpConfigured, confirmUrl, email: cautela.email_policial, token, error: err.message };
   }
 }
 
@@ -198,6 +220,7 @@ async function sendDevolucaoEmailConfirmation(cautela: any, reqHost: string) {
     console.warn(`[E-mail Bloqueado] ${cautela.email_policial} não possui domínio @pc.ce.gov.br`);
     return {
       success: false,
+      is_smtp_configured: false,
       confirmUrl,
       email: cautela.email_policial,
       token,
@@ -205,7 +228,7 @@ async function sendDevolucaoEmailConfirmation(cautela: any, reqHost: string) {
     };
   }
 
-  const transporter = await getMailTransporter();
+  const { transporter, isSmtpConfigured } = await getMailTransporter();
 
   const mailOptions = {
     from: '"SGA - Armaria & Material Bélico" <no-reply@sga.ce.gov.br>',
@@ -256,10 +279,10 @@ async function sendDevolucaoEmailConfirmation(cautela: any, reqHost: string) {
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("E-mail de devolução enviado:", info.messageId || info);
-    return { success: true, confirmUrl, email: cautela.email_policial, token };
+    return { success: true, is_smtp_configured: isSmtpConfigured, confirmUrl, email: cautela.email_policial, token };
   } catch (err: any) {
     console.error("Erro ao enviar e-mail de devolução:", err);
-    return { success: false, confirmUrl, email: cautela.email_policial, token, error: err.message };
+    return { success: false, is_smtp_configured: isSmtpConfigured, confirmUrl, email: cautela.email_policial, token, error: err.message };
   }
 }
 
@@ -283,13 +306,14 @@ async function sendSignatureReceiptEmail(cautela: any, hashAssinatura: string, i
     console.warn(`[E-mail Bloqueado] E-mail "${targetEmail}" não pertence ao domínio @pc.ce.gov.br`);
     return { 
       success: false, 
+      is_smtp_configured: false,
       email: targetEmail, 
       hashAssinatura, 
       error: `Envio de e-mail bloqueado: O e-mail "${targetEmail || 'Não informado'}" deve obrigatoriamente pertencer ao domínio @pc.ce.gov.br.` 
     };
   }
 
-  const transporter = await getMailTransporter();
+  const { transporter, isSmtpConfigured } = await getMailTransporter();
   const tipoOperacao = isDevolucao ? "Devolução / Baixa de Material Bélico" : "Retirada / Emissão de Cautela de Material Bélico";
   const dateFormatted = new Date().toLocaleString("pt-BR");
 
@@ -341,10 +365,10 @@ async function sendSignatureReceiptEmail(cautela: any, hashAssinatura: string, i
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("E-mail de comprovante de assinatura enviado:", info.messageId || info);
-    return { success: true, email: targetEmail, hashAssinatura };
+    return { success: true, is_smtp_configured: isSmtpConfigured, email: targetEmail, hashAssinatura };
   } catch (err: any) {
     console.error("Erro ao enviar e-mail de comprovante de assinatura:", err);
-    return { success: false, email: targetEmail, hashAssinatura, error: err.message };
+    return { success: false, is_smtp_configured: isSmtpConfigured, email: targetEmail, hashAssinatura, error: err.message };
   }
 }
 
@@ -1733,7 +1757,7 @@ async function startServer() {
       `);
     }
 
-    const allCautelas = serverDb.getCollection<any>("cautelas");
+    const allCautelas = serverDb.getAll<any>("cautelas");
     const cautela = allCautelas.find(c => c.token_confirmacao === token);
 
     if (!cautela) {
@@ -1811,7 +1835,7 @@ async function startServer() {
       `);
     }
 
-    const allCautelas = serverDb.getCollection<any>("cautelas");
+    const allCautelas = serverDb.getAll<any>("cautelas");
     const cautela = allCautelas.find(c => c.token_confirmacao_dev === token);
 
     if (!cautela) {
@@ -1906,7 +1930,7 @@ async function startServer() {
 
   app.post("/api/cautelas/confirmar-token", async (req, res) => {
     const { token, id } = req.body;
-    const allCautelas = serverDb.getCollection<any>("cautelas");
+    const allCautelas = serverDb.getAll<any>("cautelas");
     let cautela = null;
 
     if (token) {
@@ -1942,7 +1966,7 @@ async function startServer() {
       cautela.hash_assinatura = hashAssinatura;
     }
 
-    const updated = serverDb.update("cautelas", cautela.id, cautela);
+    const updated = serverDb.update<any>("cautelas", cautela.id, cautela);
 
     let emailResult = null;
     try {
@@ -1993,7 +2017,7 @@ async function startServer() {
       cautela.confirmado_via_email = true;
     }
 
-    const updated = serverDb.update("cautelas", id, cautela);
+    const updated = serverDb.update<any>("cautelas", id, cautela);
 
     let emailResult = null;
     try {

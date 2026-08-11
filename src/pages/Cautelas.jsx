@@ -5,6 +5,7 @@ import SignaturePad from '../components/SignaturePad';
 import { DEPARTAMENTOS_PADRAO } from '../constants/organizacao';
 import { getMenuOptions } from '../services/menuOptions';
 import { getSavedDeptosList, matchDeptoFlex } from '../utils/deptoUtils';
+import { useAuth } from '../context/AuthContext';
 
 const formatLocalDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -61,6 +62,7 @@ const formatMatricula = (val) => {
 };
 
 function Cautelas() {
+  const { can, currentUser } = useAuth();
   const [cautelas, setCautelas] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -217,13 +219,40 @@ function Cautelas() {
   });
 
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [createdCautelaFeedback, setCreatedCautelaFeedback] = useState(null);
+  const [isCreatedFeedbackModalOpen, setIsCreatedFeedbackModalOpen] = useState(false);
+
+  const handleCopyConfirmationLink = (cautela) => {
+    if (!cautela) return;
+    const isDev = cautela.status === 'Pendente (Devolução)';
+    const tok = isDev ? (cautela.token_confirmacao_dev || cautela.token_confirmacao) : cautela.token_confirmacao;
+    if (!tok) {
+      alert('Esta cautela não possui um token de confirmação pendente.');
+      return;
+    }
+    const endpoint = isDev ? '/api/cautelas/confirmar-email-dev?token=' : '/api/cautelas/confirmar-email?token=';
+    const url = `${window.location.origin}${endpoint}${tok}`;
+    navigator.clipboard.writeText(url);
+    alert(`🔗 Link de confirmação copiado com sucesso!\n\nEnvie o link ao policial para validação:\n${url}`);
+  };
 
   const handleReenviarEmail = async (cautelaObj) => {
     try {
       setSendingEmail(true);
       const targetEmail = cautelaObj.email_policial || cautelaObj.email || '';
       const res = await apiService.create(`cautelas/${cautelaObj.id}/reenviar-email`, { email: targetEmail });
-      alert(`✅ E-mail de confirmação enviado com sucesso para ${res.email_info?.email || targetEmail || 'o policial'}!`);
+      const emailInfo = res.email_info;
+      
+      if (emailInfo?.is_smtp_configured) {
+        alert(`✅ E-mail de confirmação enviado com sucesso para ${emailInfo.email || targetEmail}!`);
+      } else {
+        const isDev = cautelaObj.status === 'Pendente (Devolução)';
+        const tok = isDev ? (cautelaObj.token_confirmacao_dev || cautelaObj.token_confirmacao) : cautelaObj.token_confirmacao;
+        const endpoint = isDev ? '/api/cautelas/confirmar-email-dev?token=' : '/api/cautelas/confirmar-email?token=';
+        const directUrl = `${window.location.origin}${endpoint}${tok}`;
+        
+        alert(`⚠️ NOTIFICAÇÃO DE E-MAIL (SMTP NÃO CONFIGURADO NO SERVIDOR):\n\nO servidor de e-mail (SMTP) não possui credenciais configuradas nas variáveis de ambiente do ambiente publicado (SMTP_HOST, SMTP_USER, SMTP_PASS).\n\nE-mail do Policial: ${targetEmail}\n\n👉 Para assinar sem e-mail, utilize a opção "Assinar" na tabela de Cautelas ou copie o link direto:\n${directUrl}`);
+      }
       await loadAll();
     } catch (err) {
       alert(err.message || 'Falha ao enviar e-mail de confirmação.');
@@ -238,6 +267,7 @@ function Cautelas() {
       alert('✅ Cautela confirmada com sucesso! Assinatura digital gerada no sistema.');
       setIsAssinarModalOpen(false);
       setIsDetailModalOpen(false);
+      setIsCreatedFeedbackModalOpen(false);
       await loadAll();
     } catch (err) {
       alert(err.message || 'Falha ao confirmar assinatura via e-mail.');
@@ -1143,7 +1173,9 @@ function Cautelas() {
       if (!isCautelaUnidade && form.policial_id) {
         payload.policial_id = form.policial_id;
       }
-      await apiService.create('cautelas', payload);
+      const created = await apiService.create('cautelas', payload);
+      setCreatedCautelaFeedback(created);
+      setIsCreatedFeedbackModalOpen(true);
       setForm({
         numero: '',
         data_saida: new Date().toLocaleDateString('sv-SE'),
@@ -2310,7 +2342,15 @@ function Cautelas() {
                   disabled={sendingEmail}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  📧 Reenviar E-mail de Confirmação
+                  📧 Reenviar E-mail
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  onClick={() => handleCopyConfirmationLink(cautelaParaAssinar)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#0284c7', color: '#0369a1' }}
+                >
+                  🔗 Copiar Link
                 </button>
                 <button
                   type="button"
@@ -2828,6 +2868,14 @@ function Cautelas() {
           📧 Reenviar E-mail
         </button>
         <button 
+          className="btn btn-xs btn-outline" 
+          onClick={() => handleCopyConfirmationLink(row)}
+          title="Copiar link direto de confirmação para o clipboard"
+          style={{ borderColor: '#0284c7', color: '#0369a1' }}
+        >
+          🔗 Copiar Link
+        </button>
+        <button 
           className="btn btn-xs btn-warning" 
           onClick={() => handleOpenAssinarModal(row)}
           title="Coletar / Inserir Assinatura Digital ou Confirmar por E-mail"
@@ -2887,6 +2935,88 @@ function Cautelas() {
             </div>
           </div>
         )}
+        {/* Modal de Feedback do Envio do E-mail e Confirmação da Cautela Criada */}
+        <Modal
+          isOpen={isCreatedFeedbackModalOpen}
+          title={`✅ Cautela nº ${createdCautelaFeedback?.numero || ''} Registrada com Sucesso!`}
+          onClose={() => setIsCreatedFeedbackModalOpen(false)}
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsCreatedFeedbackModalOpen(false)}
+              >
+                Concluir
+              </button>
+            </div>
+          }
+        >
+          {createdCautelaFeedback && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>Policial / Carga:</strong> {createdCautelaFeedback.policial_nome || '—'}</p>
+                <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>Item:</strong> {createdCautelaFeedback.item_desc || createdCautelaFeedback.item || '—'} (Série: {createdCautelaFeedback.serie || 'S/N'})</p>
+                <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>E-mail Registrado:</strong> {createdCautelaFeedback.email_policial || '—'}</p>
+              </div>
+
+              {createdCautelaFeedback.email_info?.is_smtp_configured ? (
+                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', padding: '12px', color: '#166534', fontSize: '13px' }}>
+                  ✅ <strong>E-mail de Confirmação Enviado!</strong><br /> A solicitação foi enviada para <strong>{createdCautelaFeedback.email_policial}</strong>.
+                </div>
+              ) : (
+                <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '6px', padding: '12px', color: '#92400e', fontSize: '12px' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '13px' }}>
+                    ⚠️ Status do Envio do E-mail (SMTP Não Configurado)
+                  </div>
+                  <p style={{ margin: '0 0 6px 0', lineHeight: '1.4' }}>
+                    A cautela foi gerada e está com status <strong>Pendente de Assinatura</strong>. No entanto, para que o e-mail chegue diretamente à caixa de entrada externa (ex: <code>@pc.ce.gov.br</code>), é necessário configurar o servidor SMTP no painel do servidor publicado.
+                  </p>
+                  <p style={{ margin: '0', fontWeight: 'bold', color: '#78350f' }}>
+                    Você pode confirmar/assinar digitalmente esta cautela agora mesmo pelas opções abaixo:
+                  </p>
+                </div>
+              )}
+
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0369a1' }}>
+                  ⚡ Ações de Confirmação Digital e Assinatura
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-success"
+                    onClick={() => {
+                      handleConfirmarTokenEmail(createdCautelaFeedback.email_info?.token || createdCautelaFeedback.token_confirmacao, createdCautelaFeedback.id);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    ⚡ Confirmar e Assinar Agora (Direto)
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    onClick={() => handleCopyConfirmationLink(createdCautelaFeedback)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#0284c7', color: '#0369a1' }}
+                  >
+                    🔗 Copiar Link de Confirmação
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    onClick={() => handleBaixarPdf(createdCautelaFeedback.id, createdCautelaFeedback.numero)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    📄 Baixar PDF do Termo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
     </>
   );

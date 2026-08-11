@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import Modal from '../components/Modal';
 import { getMenuOptions } from '../services/menuOptions';
 import { PECAS_GLOCK_LIST, PECAS_SIG_SAUER_LIST, getSubtiposForCalibre, extractSubtipoFromDesc } from '../constants/inventoryData';
+import { useAuth } from '../context/AuthContext';
 
 export const formatCurrencyInput = (val) => {
   if (val === null || val === undefined) return '';
@@ -666,6 +667,7 @@ function mapToSelectOptions(values) {
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 function CadItens() {
+  const { can, currentUser } = useAuth();
   const fileInputRef = useRef(null);
 
   const getArmasMarcas = () => {
@@ -3511,22 +3513,26 @@ function CadItens() {
                             <td style={{ fontSize: '12px', color: '#64748b' }}>{v.qtd_min}</td>
                             <td>
                               <div style={{ display: 'flex', gap: '6px' }}>
-                                <button 
-                                  className="btn btn-xs" 
-                                  onClick={() => handleEdit(v)} 
-                                  title="Editar Item"
-                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                >
-                                  ✏️ Editar
-                                </button>
-                                <button 
-                                  className="btn btn-xs" 
-                                  onClick={() => handleDelete(v.id)} 
-                                  title="Excluir Item"
-                                  style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                >
-                                  🗑️ Excluir
-                                </button>
+                                {can('edit', 'estoque', v) && (
+                                  <button 
+                                    className="btn btn-xs" 
+                                    onClick={() => handleEdit(v)} 
+                                    title="Editar Item"
+                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                  >
+                                    ✏️ Editar
+                                  </button>
+                                )}
+                                {can('delete', 'estoque') && (
+                                  <button 
+                                    className="btn btn-xs" 
+                                    onClick={() => handleDelete(v.id)} 
+                                    title="Excluir Item"
+                                    style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                  >
+                                    🗑️ Excluir
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -3617,22 +3623,26 @@ function CadItens() {
                       <td style={{ color: '#64748b', fontSize: '12px' }}>{item.qtd_min}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button 
-                            className="btn btn-xs" 
-                            onClick={() => handleEdit(item)} 
-                            title="Editar Item"
-                            style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                          >
-                            ✏️ Editar
-                          </button>
-                          <button 
-                            className="btn btn-xs" 
-                            onClick={() => handleDelete(item.id)} 
-                            title="Excluir Item"
-                            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                          >
-                            🗑️ Excluir
-                          </button>
+                          {can('edit', 'estoque', item) && (
+                            <button 
+                              className="btn btn-xs" 
+                              onClick={() => handleEdit(item)} 
+                              title="Editar Item"
+                              style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
+                          {can('delete', 'estoque') && (
+                            <button 
+                              className="btn btn-xs" 
+                              onClick={() => handleDelete(item.id)} 
+                              title="Excluir Item"
+                              style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                            >
+                              🗑️ Excluir
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
