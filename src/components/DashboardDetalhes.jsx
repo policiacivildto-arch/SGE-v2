@@ -231,6 +231,12 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
   const [itemSearch, setItemSearch] = useState('');
   const [selectedChartFilter, setSelectedChartFilter] = useState(null);
 
+  const handleClearAllFilters = useCallback(() => {
+    setSelectedChartFilter(null);
+    setItemSearch('');
+    setExpandedItemId(null);
+  }, []);
+
   const handleToggleChartFilter = (type, value, label) => {
     if (selectedChartFilter?.type === type && selectedChartFilter?.value === value) {
       setSelectedChartFilter(null);
@@ -1217,6 +1223,60 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
         </div>
       </div>
 
+      {/* Top Filter Bar and Clear Filters Button */}
+      <div className="card" style={{ padding: '14px 20px', marginBottom: '24px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#2d3748' }}>
+              🎯 Status dos Filtros do Dashboard ({activeCategory}):
+            </span>
+            {(selectedChartFilter || itemSearch) ? (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {selectedChartFilter && (
+                  <span className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '4px 10px' }}>
+                    📊 Gráfico: <strong>{selectedChartFilter.label || `${selectedChartFilter.type}: ${selectedChartFilter.value}`}</strong>
+                    <button onClick={() => setSelectedChartFilter(null)} style={{ border: 'none', background: 'none', color: '#2b6cb0', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+                  </span>
+                )}
+                {itemSearch && (
+                  <span className="badge badge-neutral" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '4px 10px' }}>
+                    🔍 Busca: <strong>"{itemSearch}"</strong>
+                    <button onClick={() => setItemSearch('')} style={{ border: 'none', background: 'none', color: '#4a5568', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span style={{ fontSize: '12px', color: '#718096', fontStyle: 'italic' }}>
+                Todos os dados desmarcados (exibindo totalidade da categoria {activeCategory})
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleClearAllFilters}
+            style={{
+              backgroundColor: (selectedChartFilter || itemSearch) ? '#c53030' : '#f7fafc',
+              color: (selectedChartFilter || itemSearch) ? '#ffffff' : '#4a5568',
+              border: '1px solid',
+              borderColor: (selectedChartFilter || itemSearch) ? '#9b2c2c' : '#cbd5e0',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+            className="hover:opacity-90"
+            title="Limpar todos os filtros para desmarcar seleções"
+          >
+            🧹 Limpar Filtros (Desmarcar Todos)
+          </button>
+        </div>
+      </div>
+
       {/* Advanced Category-Specific Chart Section */}
       <div style={{ marginBottom: '24px' }}>
         {activeCategory === 'Armas' && (
@@ -1263,114 +1323,137 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
 
         {activeCategory === 'Coletes' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <HorizontalBarChart 
-              title="🏢 Coletes por Departamento / Lotação" 
-              dataMap={categoryAnalyticsData.deptoMap} 
-              barColor="#3182ce" 
-              filterType="depto"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <DonutPieChart 
-              data={currentCategoryStatusChartData} 
-              title="🍕 Coletes por Status" 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🛡️ Coletes por Modelo" 
-              dataMap={categoryAnalyticsData.modelMap} 
-              barColor="#2b6cb0" 
-              filterType="model"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <ExpirationStatusChart 
-              title="⏳ Vencimento" 
-              expirationMap={categoryAnalyticsData.expirationMap} 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="📐 Coletes por Tamanho" 
-              dataMap={categoryAnalyticsData.sizeMap} 
-              barColor="#805ad5" 
-              filterType="size"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="👤 Coletes por Sexo" 
-              dataMap={categoryAnalyticsData.sexMap} 
-              barColor="#d69e2e" 
-              filterType="sex"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
+            {/* Par 1: Departamento/Lotação e Status lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🏢 Coletes por Departamento / Lotação" 
+                dataMap={categoryAnalyticsData.deptoMap} 
+                barColor="#3182ce" 
+                filterType="depto"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <DonutPieChart 
+                data={currentCategoryStatusChartData} 
+                title="🍕 Coletes por Status" 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 2: Modelos e Vencimento lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🛡️ Coletes por Modelo" 
+                dataMap={categoryAnalyticsData.modelMap} 
+                barColor="#2b6cb0" 
+                filterType="model"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <ExpirationStatusChart 
+                title="⏳ Vencimento" 
+                expirationMap={categoryAnalyticsData.expirationMap} 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 3: Tamanho e Sexo lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="📐 Coletes por Tamanho" 
+                dataMap={categoryAnalyticsData.sizeMap} 
+                barColor="#805ad5" 
+                filterType="size"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <HorizontalBarChart 
+                title="👤 Coletes por Sexo" 
+                dataMap={categoryAnalyticsData.sexMap} 
+                barColor="#d69e2e" 
+                filterType="sex"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
           </div>
         )}
 
         {activeCategory === 'Munições' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <HorizontalBarChart 
-              title="💥 Munições por Subtipo / Projétil" 
-              dataMap={categoryAnalyticsData.subtipoMap} 
-              barColor="#d69e2e" 
-              filterType="subtipo"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🎯 Munições por Calibre / Modelo" 
-              dataMap={categoryAnalyticsData.modelMap} 
-              barColor="#dd6b20" 
-              filterType="model"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🏢 Munições por Departamento / Lotação" 
-              dataMap={categoryAnalyticsData.deptoMap} 
-              barColor="#3182ce" 
-              filterType="depto"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="🎯 Munições por Finalidade (Operacional x Treina)" 
-              dataMap={categoryAnalyticsData.tipoMunicaoMap} 
-              barColor="#319795" 
-              filterType="tipo_municao"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <DonutPieChart 
-              data={currentCategoryStatusChartData} 
-              title="🍕 Munições por Status (Estoque Central x Carga)" 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <ExpirationStatusChart 
-              title="⏳ Vencimento dos Lotes de Munição" 
-              expirationMap={categoryAnalyticsData.expirationMap} 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
+            {/* Par 1: Departamento/Lotação e Status lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🏢 Munições por Departamento / Lotação" 
+                dataMap={categoryAnalyticsData.deptoMap} 
+                barColor="#3182ce" 
+                filterType="depto"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <DonutPieChart 
+                data={currentCategoryStatusChartData} 
+                title="🍕 Munições por Status (Estoque Central x Carga)" 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 2: Subtipo e Calibre / Modelo lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="💥 Munições por Subtipo / Projétil" 
+                dataMap={categoryAnalyticsData.subtipoMap} 
+                barColor="#d69e2e" 
+                filterType="subtipo"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <HorizontalBarChart 
+                title="🎯 Munições por Calibre / Modelo" 
+                dataMap={categoryAnalyticsData.modelMap} 
+                barColor="#dd6b20" 
+                filterType="model"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 3: Finalidade e Vencimento lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🎯 Munições por Finalidade (Operacional x Treina)" 
+                dataMap={categoryAnalyticsData.tipoMunicaoMap} 
+                barColor="#319795" 
+                filterType="tipo_municao"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <ExpirationStatusChart 
+                title="⏳ Vencimento dos Lotes de Munição" 
+                expirationMap={categoryAnalyticsData.expirationMap} 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
           </div>
         )}
 
         {activeCategory === 'Equipamentos' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <HorizontalBarChart 
-              title="⚙️ Equipamentos por Categoria / Subgrupo" 
-              dataMap={categoryAnalyticsData.typeMap} 
-              barColor="#38a169" 
-              filterType="type"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            {selectedChartFilter?.type === 'type' && (
-              String(selectedChartFilter.value).toLowerCase().includes('distintivo') ? (
+            {/* Categoria / Subgrupo e Modelos lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="⚙️ Equipamentos por Categoria / Subgrupo" 
+                dataMap={categoryAnalyticsData.typeMap} 
+                barColor="#38a169" 
+                filterType="type"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              {selectedChartFilter?.type === 'type' && String(selectedChartFilter.value).toLowerCase().includes('distintivo') ? (
                 <HorizontalBarChart 
                   title="🛡️ Distintivos por Cargo" 
                   dataMap={categoryAnalyticsData.cargoMap} 
@@ -1381,29 +1464,34 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
                 />
               ) : (
                 <HorizontalBarChart 
-                  title={`📦 Modelos de ${selectedChartFilter.value}`} 
+                  title={selectedChartFilter?.type === 'type' ? `📦 Modelos de ${selectedChartFilter.value}` : "📦 Equipamentos por Modelo"} 
                   dataMap={categoryAnalyticsData.modelMap} 
                   barColor="#2f855a" 
                   filterType="model"
                   selectedFilter={selectedChartFilter}
                   onSelectFilter={handleToggleChartFilter}
                 />
-              )
-            )}
-            <HorizontalBarChart 
-              title="🏢 Equipamentos por Departamento / Lotação" 
-              dataMap={categoryAnalyticsData.deptoMap} 
-              barColor="#3182ce" 
-              filterType="depto"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <DonutPieChart 
-              data={currentCategoryStatusChartData} 
-              title="🍕 Equipamentos por Status / Conservação" 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
+              )}
+            </div>
+
+            {/* Par 1: Departamento/Lotação e Status lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🏢 Equipamentos por Departamento / Lotação" 
+                dataMap={categoryAnalyticsData.deptoMap} 
+                barColor="#3182ce" 
+                filterType="depto"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <DonutPieChart 
+                data={currentCategoryStatusChartData} 
+                title="🍕 Equipamentos por Status / Conservação" 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
             <StockLevelBarChart 
               data={filteredChartItems} 
               title="📊 Níveis de Estoque x Mínimo Exigido" 
@@ -1415,54 +1503,64 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
 
         {activeCategory === 'Uniformes' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <HorizontalBarChart 
-              title="👕 Uniformes por Peça / Categoria" 
-              dataMap={categoryAnalyticsData.typeMap} 
-              barColor="#805ad5" 
-              filterType="type"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            {selectedChartFilter?.type === 'type' && (
+            {/* Peça / Categoria e Modelos lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
               <HorizontalBarChart 
-                title={`📦 Modelos de ${selectedChartFilter.value}`} 
+                title="👕 Uniformes por Peça / Categoria" 
+                dataMap={categoryAnalyticsData.typeMap} 
+                barColor="#805ad5" 
+                filterType="type"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <HorizontalBarChart 
+                title={selectedChartFilter?.type === 'type' ? `📦 Modelos de ${selectedChartFilter.value}` : "📦 Uniformes por Modelo / Tipo"} 
                 dataMap={categoryAnalyticsData.modelMap} 
                 barColor="#6b46c1" 
                 filterType="model"
                 selectedFilter={selectedChartFilter}
                 onSelectFilter={handleToggleChartFilter}
               />
-            )}
-            <HorizontalBarChart 
-              title="🏢 Uniformes por Departamento / Lotação" 
-              dataMap={categoryAnalyticsData.deptoMap} 
-              barColor="#3182ce" 
-              filterType="depto"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="📐 Uniformes por Tamanho / Numeração" 
-              dataMap={categoryAnalyticsData.sizeMap} 
-              barColor="#6b46c1" 
-              filterType="size"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <HorizontalBarChart 
-              title="👤 Uniformes por Sexo / Modelagem" 
-              dataMap={categoryAnalyticsData.sexMap} 
-              barColor="#b794f4" 
-              filterType="sex"
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
-            <DonutPieChart 
-              data={currentCategoryStatusChartData} 
-              title="🍕 Uniformes por Status (Estoque x Carga)" 
-              selectedFilter={selectedChartFilter}
-              onSelectFilter={handleToggleChartFilter}
-            />
+            </div>
+
+            {/* Par 1: Departamento/Lotação e Status lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="🏢 Uniformes por Departamento / Lotação" 
+                dataMap={categoryAnalyticsData.deptoMap} 
+                barColor="#3182ce" 
+                filterType="depto"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <DonutPieChart 
+                data={currentCategoryStatusChartData} 
+                title="🍕 Uniformes por Status (Estoque x Carga)" 
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
+            {/* Par 2: Tamanho e Sexo lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+              <HorizontalBarChart 
+                title="📐 Uniformes por Tamanho / Numeração" 
+                dataMap={categoryAnalyticsData.sizeMap} 
+                barColor="#6b46c1" 
+                filterType="size"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+              <HorizontalBarChart 
+                title="👤 Uniformes por Sexo / Modelagem" 
+                dataMap={categoryAnalyticsData.sexMap} 
+                barColor="#b794f4" 
+                filterType="sex"
+                selectedFilter={selectedChartFilter}
+                onSelectFilter={handleToggleChartFilter}
+              />
+            </div>
+
             <StockLevelBarChart 
               data={filteredChartItems} 
               title="📊 Balanço de Estoque Mínimo" 
@@ -1493,7 +1591,7 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
               </span>
             </div>
             <button
-              onClick={() => setSelectedChartFilter(null)}
+              onClick={handleClearAllFilters}
               style={{
                 backgroundColor: '#e2e8f0',
                 color: '#2d3748',
@@ -1506,7 +1604,7 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
               }}
               className="hover:bg-slate-300"
             >
-              🧹 Limpar Filtro do Gráfico
+              🧹 Limpar Filtros (Desmarcar Todos)
             </button>
           </div>
         )}
@@ -1521,7 +1619,7 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
             </p>
           </div>
           
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input 
               type="text"
               value={itemSearch}
@@ -1529,6 +1627,15 @@ export default function DashboardDetalhes({ items, allBens, allCautelas, STATUS_
               placeholder={`🔍 Filtrar em ${activeCategory}...`}
               style={{ padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e0', borderRadius: '4px', width: '250px' }}
             />
+            {(itemSearch || selectedChartFilter) && (
+              <button
+                onClick={handleClearAllFilters}
+                style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', color: '#2d3748', backgroundColor: '#edf2f7', border: '1px solid #cbd5e0', borderRadius: '4px', cursor: 'pointer' }}
+                className="hover:bg-gray-300"
+              >
+                🧹 Limpar Filtros
+              </button>
+            )}
           </div>
         </div>
 

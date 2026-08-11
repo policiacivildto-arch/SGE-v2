@@ -85,8 +85,8 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.error('Error loading current user:', e);
     }
-    // Default to admin user for immediate seamless access
-    return SEED_USERS[0];
+    // Default to null so user lands on login page when unauthenticated
+    return null;
   });
 
   useEffect(() => {

@@ -1633,7 +1633,15 @@ function DashboardEstoqueView({ counts, onNavigate }) {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              className="btn btn-xs btn-outline"
+              onClick={handleResetFilters}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+              title="Desmarcar todos os filtros e redefinir para o padrão"
+            >
+              🧹 Limpar Filtros
+            </button>
             <button className="btn btn-xs btn-outline" onClick={() => onNavigate('pg-relatorios-servicos')}>
               📋 Ver Relatórios Completos
             </button>
