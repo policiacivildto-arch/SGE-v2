@@ -45,11 +45,11 @@ export default function LoginModal({ isOpen, onClose }) {
     }
 
     try {
-      const newUser = register(regNome, regEmail, regPassword, regRole);
-      setRegSuccess(`Conta criada com sucesso para ${newUser.nome}! Você já está conectado.`);
+      const newUser = register(regNome, regEmail, regPassword);
+      setRegSuccess(`Conta criada com sucesso para ${newUser.nome}! Perfil inicial: Administrativo. Para alteração de nível, contate o Administrador.`);
       setTimeout(() => {
         if (onClose) onClose();
-      }, 1200);
+      }, 1500);
     } catch (err) {
       setRegError(err.message);
     }
@@ -104,8 +104,8 @@ export default function LoginModal({ isOpen, onClose }) {
           padding: '24px 28px',
           position: 'relative'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '28px' }}>🛡️</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+            <img src="/brasao_pcce.png" alt="Brasão Polícia Civil do Ceará" style={{ height: '54px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', letterSpacing: '-0.02em', color: '#ffffff' }}>
                 POLÍCIA CIVIL DO CEARÁ
@@ -373,27 +373,22 @@ export default function LoginModal({ isOpen, onClose }) {
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
-                  Nível de Acesso (Perfil)
-                </label>
-                <select
-                  value={regRole}
-                  onChange={e => setRegRole(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px',
-                    fontSize: '13px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <option value="armeiro">🔧 Armeiro (Acesso a Serviços e Estoque; edita apenas Serviços)</option>
-                  <option value="administrativo">📋 Administrativo (Acesso a tudo; edita apenas Estoque)</option>
-                  <option value="admin">👑 Administrador (Acesso total e Irrestrito - faz tudo)</option>
-                </select>
+              {/* Information Notice about Access Level */}
+              <div style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                fontSize: '12px',
+                color: '#1e3a8a',
+                lineHeight: '1.4'
+              }}>
+                <div style={{ fontWeight: '700', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span>🔒 Definição do Nível de Acesso:</span>
+                </div>
+                <div>
+                  O perfil do usuário é determinado exclusivamente pelo <strong>Administrador do Sistema</strong>. Novos cadastros são registrados automaticamente com perfil básico (Administrativo) até a liberação de nível superior pelo Administrador.
+                </div>
               </div>
 
               <div>

@@ -1,1 +1,0 @@
-# SGA Django Project Init

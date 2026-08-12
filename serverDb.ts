@@ -182,6 +182,8 @@ export interface Cautela extends BaseEntity {
   email_policial?: string;
   hash_assinatura?: string;
   hash_assinatura_dev?: string;
+  id_confirmacao?: string;
+  hash_confirmacao?: string;
   created_by?: string;
 }
 

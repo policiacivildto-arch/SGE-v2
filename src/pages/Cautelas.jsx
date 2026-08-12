@@ -232,8 +232,10 @@ function Cautelas() {
     }
     const endpoint = isDev ? '/api/cautelas/confirmar-email-dev?token=' : '/api/cautelas/confirmar-email?token=';
     const url = `${window.location.origin}${endpoint}${tok}`;
+    const idConfirmacao = cautela.id_confirmacao || cautela.hash_confirmacao || cautela.hash_assinatura || 'CONF-PENDENTE';
+
     navigator.clipboard.writeText(url);
-    alert(`🔗 Link de confirmação copiado com sucesso!\n\nEnvie o link ao policial para validação:\n${url}`);
+    alert(`🔗 LINK DE CONFIRMAÇÃO COPIADO COM SUCESSO!\n\n🆔 ID de Confirmação / Protocolo: ${idConfirmacao}\n📧 Policial: ${cautela.policial_nome || 'Servidor'} (${cautela.email_policial || 'E-mail não informado'})\n\n👉 Envie o link abaixo ao policial para que ele valide e gere a assinatura digital:\n${url}`);
   };
 
   const handleReenviarEmail = async (cautelaObj) => {
@@ -242,16 +244,17 @@ function Cautelas() {
       const targetEmail = cautelaObj.email_policial || cautelaObj.email || '';
       const res = await apiService.create(`cautelas/${cautelaObj.id}/reenviar-email`, { email: targetEmail });
       const emailInfo = res.email_info;
+      const idConf = cautelaObj.id_confirmacao || cautelaObj.hash_confirmacao || cautelaObj.hash_assinatura || 'CONF-PENDENTE';
       
       if (emailInfo?.is_smtp_configured) {
-        alert(`✅ E-mail de confirmação enviado com sucesso para ${emailInfo.email || targetEmail}!`);
+        alert(`✅ E-mail de confirmação enviado com sucesso para ${emailInfo.email || targetEmail}!\n\n🆔 ID de Confirmação: ${idConf}`);
       } else {
         const isDev = cautelaObj.status === 'Pendente (Devolução)';
         const tok = isDev ? (cautelaObj.token_confirmacao_dev || cautelaObj.token_confirmacao) : cautelaObj.token_confirmacao;
         const endpoint = isDev ? '/api/cautelas/confirmar-email-dev?token=' : '/api/cautelas/confirmar-email?token=';
         const directUrl = `${window.location.origin}${endpoint}${tok}`;
         
-        alert(`⚠️ NOTIFICAÇÃO DE E-MAIL (SMTP NÃO CONFIGURADO NO SERVIDOR):\n\nO servidor de e-mail (SMTP) não possui credenciais configuradas nas variáveis de ambiente do ambiente publicado (SMTP_HOST, SMTP_USER, SMTP_PASS).\n\nE-mail do Policial: ${targetEmail}\n\n👉 Para assinar sem e-mail, utilize a opção "Assinar" na tabela de Cautelas ou copie o link direto:\n${directUrl}`);
+        alert(`⚠️ CONFIGURAÇÃO SMTP NÃO CONCLUÍDA NO SERVIDOR:\n\nAs variáveis de ambiente de e-mail (SMTP_HOST, SMTP_USER, SMTP_PASS) não foram preenchidas no servidor publicado.\n\n🆔 ID de Confirmação / Protocolo: ${idConf}\n📧 Policial: ${targetEmail}\n\n👉 Você pode copiar o link direto de confirmação ou assinar diretamente no sistema:\n${directUrl}`);
       }
       await loadAll();
     } catch (err) {
@@ -263,8 +266,9 @@ function Cautelas() {
 
   const handleConfirmarTokenEmail = async (tokenVal, cautelaId) => {
     try {
-      await apiService.create('cautelas/confirmar-token', { token: tokenVal, id: cautelaId });
-      alert('✅ Cautela confirmada com sucesso! Assinatura digital gerada no sistema.');
+      const res = await apiService.create('cautelas/confirmar-token', { token: tokenVal, id: cautelaId });
+      const hashGerado = res.hash_assinatura || res.id_confirmacao || res.cautela?.hash_assinatura || 'SIG-2026-CONFIRMADO';
+      alert(`✅ Cautela confirmada com sucesso!\n\n🆔 ID Único de Confirmação & Assinatura Digital Gerada: ${hashGerado}`);
       setIsAssinarModalOpen(false);
       setIsDetailModalOpen(false);
       setIsCreatedFeedbackModalOpen(false);
@@ -2958,6 +2962,9 @@ function Cautelas() {
                 <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>Policial / Carga:</strong> {createdCautelaFeedback.policial_nome || '—'}</p>
                 <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>Item:</strong> {createdCautelaFeedback.item_desc || createdCautelaFeedback.item || '—'} (Série: {createdCautelaFeedback.serie || 'S/N'})</p>
                 <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}><strong>E-mail Registrado:</strong> {createdCautelaFeedback.email_policial || '—'}</p>
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#e0f2fe', border: '1px solid #7dd3fc', borderRadius: '6px', fontFamily: 'monospace', fontSize: '13px', color: '#0369a1', fontWeight: 'bold' }}>
+                  🆔 ID de Confirmação / Protocolo: {createdCautelaFeedback.id_confirmacao || createdCautelaFeedback.hash_confirmacao || createdCautelaFeedback.hash_assinatura || 'CONF-PENDENTE'}
+                </div>
               </div>
 
               {createdCautelaFeedback.email_info?.is_smtp_configured ? (

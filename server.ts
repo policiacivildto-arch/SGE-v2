@@ -1,9 +1,23 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
+import http from "http";
+import { spawn } from "child_process";
 import { createServer as createViteServer } from "vite";
 import { serverDb } from "./serverDb.js";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
+
+// Launch Python backend process (FastAPI / HTTP server)
+try {
+  const pyProc = spawn("python3", ["backend_python/server_http.py"], {
+    stdio: "inherit",
+    env: { ...process.env, PYTHON_PORT: "8008" }
+  });
+  pyProc.on("error", (err) => console.error("Erro ao iniciar Python backend process:", err));
+} catch (e) {
+  console.error("Falha ao disparar Python backend process:", e);
+}
 
 let mailTransporter: any = null;
 let isSmtpConfigured = false;
@@ -136,9 +150,20 @@ async function sendCautelaEmailConfirmation(cautela: any, reqHost: string) {
     subject: `[SGA] Solicitação de Confirmação de Cautela nº ${cautela.numero}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #1e3a8a; color: #ffffff; padding: 16px 20px; text-align: center;">
-          <h2 style="margin: 0; font-size: 18px;">SGA - Sistema de Gestão de Armaria</h2>
-          <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Confirmação Digital de Cautela de Material Bélico</p>
+        <div style="background-color: #0f172a; color: #ffffff; padding: 20px; text-align: center;">
+          <div style="margin-bottom: 8px;">
+            <svg width="48" height="52" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M50 5 L90 20 V55 C90 80 50 102 50 102 C50 102 10 80 10 55 V20 L50 5 Z" fill="#d97706" stroke="#fbbf24" stroke-width="3" />
+              <path d="M50 10 L84 23 V53 C84 74 50 94 50 94 C50 94 16 74 16 53 V23 L50 10 Z" fill="#0f172a" stroke="#d97706" stroke-width="2" />
+              <path d="M22 28 H78 V40 H22 Z" fill="#b45309" />
+              <text x="50" y="37" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="bold" font-family="sans-serif">POLÍCIA CIVIL</text>
+              <circle cx="50" cy="62" r="18" fill="#1e3a8a" stroke="#fbbf24" stroke-width="1.5" />
+              <polygon points="50,49 54,58 64,58 56,64 59,74 50,68 41,74 44,64 36,58 46,58" fill="#fbbf24" stroke="#d97706" stroke-width="0.5" />
+              <text x="50" y="88" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="bold" font-family="sans-serif">CEARÁ</text>
+            </svg>
+          </div>
+          <h2 style="margin: 0; font-size: 18px;">SGA - POLÍCIA CIVIL DO CEARÁ</h2>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #93c5fd; font-weight: bold;">Confirmação Digital de Cautela de Material Bélico</p>
         </div>
         
         <div style="padding: 20px; color: #1e293b; font-size: 14px; line-height: 1.5;">
@@ -324,7 +349,18 @@ async function sendSignatureReceiptEmail(cautela: any, hashAssinatura: string, i
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; border: 1px solid #0f172a; border-radius: 8px; overflow: hidden; background: #ffffff;">
         <div style="background-color: #0f172a; color: #ffffff; padding: 20px; text-align: center;">
-          <h2 style="margin: 0; font-size: 18px; letter-spacing: 0.5px;">SGA - POLÍCIA CIVIL DO ESTADO</h2>
+          <div style="margin-bottom: 8px;">
+            <svg width="48" height="52" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M50 5 L90 20 V55 C90 80 50 102 50 102 C50 102 10 80 10 55 V20 L50 5 Z" fill="#d97706" stroke="#fbbf24" stroke-width="3" />
+              <path d="M50 10 L84 23 V53 C84 74 50 94 50 94 C50 94 16 74 16 53 V23 L50 10 Z" fill="#0f172a" stroke="#d97706" stroke-width="2" />
+              <path d="M22 28 H78 V40 H22 Z" fill="#b45309" />
+              <text x="50" y="37" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="bold" font-family="sans-serif">POLÍCIA CIVIL</text>
+              <circle cx="50" cy="62" r="18" fill="#1e3a8a" stroke="#fbbf24" stroke-width="1.5" />
+              <polygon points="50,49 54,58 64,58 56,64 59,74 50,68 41,74 44,64 36,58 46,58" fill="#fbbf24" stroke="#d97706" stroke-width="0.5" />
+              <text x="50" y="88" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="bold" font-family="sans-serif">CEARÁ</text>
+            </svg>
+          </div>
+          <h2 style="margin: 0; font-size: 18px; letter-spacing: 0.5px;">SGA - POLÍCIA CIVIL DO CEARÁ</h2>
           <p style="margin: 6px 0 0 0; font-size: 13px; color: #93c5fd; font-weight: bold;">Comprovante Oficial de Assinatura Digital</p>
         </div>
         
@@ -1713,6 +1749,10 @@ async function startServer() {
     const token = "tok_" + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
     const emailPolicial = (req.body.email_policial || req.body.policial_email || req.body.email || "").trim();
 
+    const timestampHex = Date.now().toString(36).toUpperCase();
+    const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const preGeneratedHash = `SIG-2026-${timestampHex}-${randomHex}`;
+
     if (emailPolicial && !isValidPcCeEmail(emailPolicial)) {
       return res.status(400).json({ detail: "Apenas e-mails institucionais do domínio @pc.ce.gov.br são permitidos." });
     }
@@ -1725,7 +1765,10 @@ async function startServer() {
       status: initialStatus,
       token_confirmacao: token,
       email_policial: emailPolicial,
-      assinatura_digital: req.body.assinatura_digital || "",
+      id_confirmacao: preGeneratedHash,
+      hash_confirmacao: preGeneratedHash,
+      hash_assinatura: hasSignature ? preGeneratedHash : (req.body.hash_assinatura || ""),
+      assinatura_digital: req.body.assinatura_digital || (hasSignature ? generateDigitalSignatureSvg(extraData.policial_nome || req.body.policial_nome, extraData.matricula || req.body.matricula, preGeneratedHash, new Date().toISOString()) : ""),
       condicao_dev: "",
       obs_dev: "",
       qtd_carregadores: req.body.qtd_carregadores !== undefined ? req.body.qtd_carregadores : (req.body.quantidade_carregadores !== undefined ? req.body.quantidade_carregadores : null)
@@ -1738,6 +1781,8 @@ async function startServer() {
 
     res.status(201).json({
       ...newItem,
+      id_confirmacao: preGeneratedHash,
+      hash_confirmacao: preGeneratedHash,
       email_info: emailInfo
     });
   });
@@ -1774,13 +1819,27 @@ async function startServer() {
     }
 
     const dataConfirmacao = new Date().toISOString();
-    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, token, dataConfirmacao);
+    const timestampHex = Date.now().toString(36).toUpperCase();
+    const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const hashAssinatura = cautela.hash_assinatura || cautela.id_confirmacao || cautela.hash_confirmacao || `SIG-2026-${timestampHex}-${randomHex}`;
+    
+    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, hashAssinatura, dataConfirmacao);
 
     cautela.status = "Ativa";
     cautela.assinatura_digital = sigSvg;
     cautela.confirmado_via_email = true;
     cautela.data_assinatura = dataConfirmacao;
+    cautela.hash_assinatura = hashAssinatura;
+    cautela.id_confirmacao = hashAssinatura;
+    cautela.hash_confirmacao = hashAssinatura;
     serverDb.update("cautelas", cautela.id, cautela);
+
+    // Attempt to send receipt email if configured
+    try {
+      sendSignatureReceiptEmail(cautela, hashAssinatura, false, req.headers.host || "localhost:3000").catch(() => {});
+    } catch (e) {
+      // non-blocking
+    }
 
     res.send(`
       <!DOCTYPE html>
@@ -1796,14 +1855,20 @@ async function startServer() {
           h1 { color: #0f172a; font-size: 22px; margin: 0 0 10px 0; }
           p { color: #475569; font-size: 14px; line-height: 1.6; margin: 6px 0; }
           .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: left; margin: 20px 0; font-size: 13px; }
+          .id-box { background: #e0f2fe; border: 1px solid #0284c7; padding: 12px; border-radius: 8px; text-align: center; margin: 12px 0; font-family: monospace; font-size: 18px; font-weight: bold; color: #0369a1; letter-spacing: 1px; }
         </style>
       </head>
       <body>
         <div class="card">
           <div class="badge">✓ CONFIRMAÇÃO REALIZADA COM SUCESSO</div>
           <h1>Cautela nº ${cautela.numero} Assinada!</h1>
-          <p>Sua confirmação foi registrada com sucesso. A assinatura digital foi gerada e a cautela está ativada no sistema SGA.</p>
+          <p>Sua confirmação foi registrada com sucesso. A assinatura digital e o ID de validação foram gerados e a cautela está ativada no sistema SGA.</p>
           
+          <div class="id-box">
+            <span style="font-size: 11px; display: block; color: #0284c7; font-family: sans-serif; font-weight: normal; margin-bottom: 4px;">🆔 ID Único de Confirmação & Assinatura Digital</span>
+            ${hashAssinatura}
+          </div>
+
           <div class="info-box">
             <p style="margin: 4px 0;"><strong>Policial Recebedor:</strong> ${cautela.policial_nome || '—'}</p>
             <p style="margin: 4px 0;"><strong>Matrícula:</strong> ${cautela.matricula || '—'}</p>
@@ -1852,13 +1917,25 @@ async function startServer() {
     }
 
     const dataConfirmacao = new Date().toISOString();
-    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, token, dataConfirmacao, true);
+    const timestampHex = Date.now().toString(36).toUpperCase();
+    const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const hashAssinatura = cautela.hash_assinatura_dev || `SIG-DEV-2026-${timestampHex}-${randomHex}`;
+    
+    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, hashAssinatura, dataConfirmacao, true);
 
     cautela.status = "Devolvido";
     cautela.assinatura_dev = sigSvg;
     cautela.confirmado_via_email_dev = true;
     cautela.data_assinatura_dev = dataConfirmacao;
+    cautela.hash_assinatura_dev = hashAssinatura;
     serverDb.update("cautelas", cautela.id, cautela);
+
+    // Attempt to send receipt email if configured
+    try {
+      sendSignatureReceiptEmail(cautela, hashAssinatura, true, req.headers.host || "localhost:3000").catch(() => {});
+    } catch (e) {
+      // non-blocking
+    }
 
     res.send(`
       <!DOCTYPE html>
@@ -1874,6 +1951,7 @@ async function startServer() {
           h1 { color: #0f172a; font-size: 22px; margin: 0 0 10px 0; }
           p { color: #475569; font-size: 14px; line-height: 1.6; margin: 6px 0; }
           .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: left; margin: 20px 0; font-size: 13px; }
+          .id-box { background: #d1fae5; border: 1px solid #059669; padding: 12px; border-radius: 8px; text-align: center; margin: 12px 0; font-family: monospace; font-size: 18px; font-weight: bold; color: #047857; letter-spacing: 1px; }
         </style>
       </head>
       <body>
@@ -1882,6 +1960,11 @@ async function startServer() {
           <h1>Devolução da Cautela nº ${cautela.numero} Assinada!</h1>
           <p>Sua confirmação de devolução foi registrada com sucesso. A assinatura digital foi gerada e a baixa foi concluída no sistema SGA.</p>
           
+          <div class="id-box">
+            <span style="font-size: 11px; display: block; color: #059669; font-family: sans-serif; font-weight: normal; margin-bottom: 4px;">🆔 ID Único de Confirmação de Devolução</span>
+            ${hashAssinatura}
+          </div>
+
           <div class="info-box">
             <p style="margin: 4px 0;"><strong>Policial:</strong> ${cautela.policial_nome || '—'}</p>
             <p style="margin: 4px 0;"><strong>Matrícula:</strong> ${cautela.matricula || '—'}</p>
@@ -1946,11 +2029,12 @@ async function startServer() {
     const dataConfirmacao = new Date().toISOString();
     const isDevolucao = cautela.status === "Pendente (Devolução)" || (token && cautela.token_confirmacao_dev === token);
     const tokenVal = (isDevolucao ? cautela.token_confirmacao_dev : cautela.token_confirmacao) || ("tok_" + Math.random().toString(36).substring(2, 10));
-    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, tokenVal, dataConfirmacao, isDevolucao);
 
     const timestamp = Date.now().toString(36).toUpperCase();
     const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const hashAssinatura = `SIG-2026-${timestamp}-${randomHex}`;
+    const hashAssinatura = (isDevolucao ? cautela.hash_assinatura_dev : (cautela.hash_assinatura || cautela.id_confirmacao || cautela.hash_confirmacao)) || `SIG-2026-${timestamp}-${randomHex}`;
+
+    const sigSvg = generateDigitalSignatureSvg(cautela.policial_nome, cautela.matricula, hashAssinatura, dataConfirmacao, isDevolucao);
 
     if (isDevolucao) {
       cautela.status = "Devolvido";
@@ -1964,6 +2048,8 @@ async function startServer() {
       cautela.confirmado_via_email = true;
       cautela.data_assinatura = dataConfirmacao;
       cautela.hash_assinatura = hashAssinatura;
+      cautela.id_confirmacao = hashAssinatura;
+      cautela.hash_confirmacao = hashAssinatura;
     }
 
     const updated = serverDb.update<any>("cautelas", cautela.id, cautela);
@@ -1978,6 +2064,7 @@ async function startServer() {
     res.json({
       detail: isDevolucao ? "Devolução confirmada e assinatura digital gerada com sucesso!" : "Cautela confirmada e assinatura digital gerada com sucesso!",
       hash_assinatura: hashAssinatura,
+      id_confirmacao: hashAssinatura,
       email_enviado: emailResult?.success || false,
       email_destino: emailResult?.email || updated.email_policial,
       cautela: updated
@@ -2068,6 +2155,20 @@ async function startServer() {
     res.status(204).send();
   });
 
+  // Helper for PDF header with coat of arms image
+  function drawBrasaoPdfHeader(doc: any) {
+    try {
+      const imgPath = path.join(process.cwd(), "public", "brasao_pcce.png");
+      if (fs.existsSync(imgPath)) {
+        // A4 page width is 595.28 points, center is 297.64
+        doc.image(imgPath, 297.64 - 25, 20, { fit: [50, 62], align: "center", valign: "center" });
+        doc.y = 90;
+      }
+    } catch (e) {
+      console.error("Erro ao desenhar brasão no PDF:", e);
+    }
+  }
+
   // Endpoints para Documento PDF e Relatórios
   app.get("/api/cautelas/:id/documento-pdf", (req, res) => {
     try {
@@ -2083,6 +2184,8 @@ async function startServer() {
       res.setHeader("Content-Disposition", `attachment; filename="cautela_${cautela.numero}.pdf"`);
       
       doc.pipe(res);
+
+      drawBrasaoPdfHeader(doc);
 
       doc.font("Helvetica-Bold").fontSize(13).text("POLÍCIA CIVIL DO ESTADO DO CEARÁ", { align: "center" });
       doc.fontSize(9).font("Helvetica").text("GOVERNO DO ESTADO • SECRETARIA DA SEGURANÇA PÚBLICA E DEFESA SOCIAL", { align: "center" });
@@ -2204,6 +2307,8 @@ async function startServer() {
       res.setHeader("Content-Disposition", `attachment; filename="servico_${servico.codigo}.pdf"`);
       
       doc.pipe(res);
+
+      drawBrasaoPdfHeader(doc);
 
       doc.font("Helvetica-Bold").fontSize(13).text("POLÍCIA CIVIL DO ESTADO DO CEARÁ", { align: "center" });
       doc.fontSize(9).font("Helvetica").text("GOVERNO DO ESTADO • SECRETARIA DA SEGURANÇA PÚBLICA E DEFESA SOCIAL", { align: "center" });

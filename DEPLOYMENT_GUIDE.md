@@ -113,13 +113,16 @@ EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### Opção B: PostgreSQL para Banco de Dados de Produção
-Para conectar o Python a um banco de dados PostgreSQL profissional:
-1. Altere a variável `DATABASE_URL` no `.env`:
-   ```env
-   DATABASE_URL=postgresql://usuario:senha@localhost:5432/sga_db
-   ```
-2. Execute `python seed_db.py` para criar todas as tabelas automaticamente no PostgreSQL.
+### Opção B: PostgreSQL para Banco de Dados com Docker Secrets
+Para conectar o Python a um banco de dados PostgreSQL seguro usando Docker Secrets:
+1. As credenciais e senhas sensíveis são armazenadas na pasta `secrets/`:
+   - `secrets/db_user.txt`
+   - `secrets/db_password.txt`
+   - `secrets/db_name.txt`
+   - `secrets/smtp_password.txt`
+2. O `docker-compose.yml` monta os segredos em `/run/secrets/` nos containers sem expor credenciais em arquivos `.env`.
+3. O ORM do Python em `database.py` lê os segredos automaticamente do diretório seguro `/run/secrets/`.
+
 
 ---
 

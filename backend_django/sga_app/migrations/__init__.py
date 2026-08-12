@@ -1,1 +1,0 @@
-# SGA App Migrations Init

@@ -77,15 +77,12 @@ export function AuthProvider({ children }) {
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
+    // Always start unauthenticated (null) on launch so user lands on login page
     try {
-      const storedUser = localStorage.getItem('pc_ce_current_user');
-      if (storedUser) {
-        return JSON.parse(storedUser);
-      }
+      localStorage.removeItem('pc_ce_current_user');
     } catch (e) {
-      console.error('Error loading current user:', e);
+      console.error('Error clearing user session on init:', e);
     }
-    // Default to null so user lands on login page when unauthenticated
     return null;
   });
 
@@ -130,7 +127,7 @@ export function AuthProvider({ children }) {
     return user;
   };
 
-  const register = (nome, email, password, role) => {
+  const register = (nome, email, password, forcedRole = null) => {
     const emailErr = validateEmail(email);
     if (emailErr) throw new Error(emailErr);
 
@@ -142,6 +139,8 @@ export function AuthProvider({ children }) {
       throw new Error('Este e-mail já está cadastrado no sistema.');
     }
 
+    // Role is determined by administrator or defaults to basic 'administrativo'
+    const role = forcedRole || 'administrativo';
     let roleLabel = 'Administrativo';
     let badgeColor = '#059669';
     if (role === 'admin') {
@@ -165,6 +164,29 @@ export function AuthProvider({ children }) {
     setUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
     return newUser;
+  };
+
+  const updateUserRole = (userId, newRole) => {
+    let roleLabel = 'Administrativo';
+    let badgeColor = '#059669';
+    if (newRole === 'admin') {
+      roleLabel = 'Administrador';
+      badgeColor = '#7c3aed';
+    } else if (newRole === 'armeiro') {
+      roleLabel = 'Armeiro';
+      badgeColor = '#2563eb';
+    }
+
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return { ...u, role: newRole, roleLabel, badgeColor };
+      }
+      return u;
+    }));
+
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser(prev => ({ ...prev, role: newRole, roleLabel, badgeColor }));
+    }
   };
 
   const switchUser = (userIdOrRole) => {
@@ -245,6 +267,7 @@ export function AuthProvider({ children }) {
     users,
     login,
     register,
+    updateUserRole,
     switchUser,
     logout,
     can,

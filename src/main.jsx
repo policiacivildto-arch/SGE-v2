@@ -5081,6 +5081,7 @@ function RelatoriosServicosView() {
             <button onclick="window.print()" style="padding: 8px 16px; background: #2b6cb0; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">🖨️ Imprimir OS</button>
           </div>
           <div class="header">
+            <img src="/brasao_pcce.png" alt="Brasão PC-CE" style="height: 65px; width: auto; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;" />
             <h1>POLÍCIA CIVIL DO ESTADO DO CEARÁ</h1>
             <h2>GOVERNO DO ESTADO • SECRETARIA DA SEGURANÇA PÚBLICA E DEFESA SOCIAL</h2>
             <h2>DEPARTAMENTO TÉCNICO OPERACIONAL</h2>
@@ -8152,6 +8153,9 @@ function RelatoriosView() {
             <div id="printable-report-content" style={{ padding: '28px', overflowY: 'auto', flex: 1, color: '#0f172a', fontFamily: 'sans-serif', background: '#fff' }}>
               {/* Document Header */}
               <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '14px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                  <img src="/brasao_pcce.png" alt="Brasão PC-CE" style={{ height: '60px', width: 'auto', objectFit: 'contain' }} />
+                </div>
                 <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px' }}>
                   POLÍCIA CIVIL DO ESTADO DO CEARÁ
                 </h2>
