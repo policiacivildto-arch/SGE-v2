@@ -2,22 +2,10 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import http from "http";
-import { spawn } from "child_process";
 import { createServer as createViteServer } from "vite";
 import { serverDb } from "./serverDb.js";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
-
-// Launch Python backend process (FastAPI / HTTP server)
-try {
-  const pyProc = spawn("python3", ["backend_python/server_http.py"], {
-    stdio: "inherit",
-    env: { ...process.env, PYTHON_PORT: "8008" }
-  });
-  pyProc.on("error", (err) => console.error("Erro ao iniciar Python backend process:", err));
-} catch (e) {
-  console.error("Falha ao disparar Python backend process:", e);
-}
 
 let mailTransporter: any = null;
 let isSmtpConfigured = false;

@@ -128,14 +128,14 @@ Estes itens já foram implementados no repositório, independentemente da migra�
 
 ## 8. Plano faseado
 
-| Fase | Entrega | Critério de aceite |
-|---|---|---|
-| **0 — Pré-requisitos** | DevOps já concluído (seção 6) + confirmação de que Django é requisito formal | `.gitignore`, CI e limpeza já feitos nesta rodada; falta só a confirmação formal do requisito. |
-| **1 — Modelagem** | `models.py` das 16 entidades + migrations + admin do Django habilitado para inspeção manual | `python manage.py migrate` roda limpo; todas as entidades visíveis no Django Admin. |
-| **2 — Cadastros (CRUD simples)** | DRF ViewSets para Departamentos, Delegacias, Lotações, Policiais, Fornecedores, Patrimônios, Armas, Compras, Itens, Opções de Menu | Endpoints respondem com o mesmo formato de payload hoje usado pelo frontend; testado manualmente contra as telas React existentes. |
-| **3 — Núcleo de negócio** | Autenticação/RBAC real, Cautelas (máquina de estados + estoque), Serviços, Movimentos, e-mail SMTP, assinatura digital | Fluxo completo de cautela (criar → assinar → devolver → confirmar por e-mail) funcionando ponta a ponta; testes automatizados cobrindo esse fluxo. |
-| **4 — Documentos** | Geração de PDF (cautela/serviço) e XLSX (itens/cautelas) | PDFs e planilhas gerados batem visualmente com os documentos hoje gerados pelo Node. |
-| **5 — OpenAPI e corte final** | `/api/schema/` e `/api/docs/` publicados; `server.ts`/`serverDb.ts`/`server_http.py`/`db.json` aposentados; `docker-compose.yml` com um único serviço de backend usando Docker secrets | Sistema roda 100% via Django; nenhum dos backends antigos é mais necessário para a aplicação funcionar. |
+| Fase | Entrega | Critério de aceite | Status |
+|---|---|---|---|
+| **0 — Pré-requisitos** | DevOps já concluído (seção 6) + confirmação de que Django é requisito formal | `.gitignore`, CI e limpeza já feitos nesta rodada; falta só a confirmação formal do requisito. | ✅ Concluído |
+| **1 — Modelagem** | `models.py` das 16 entidades + migrations + admin do Django habilitado para inspeção manual | `python manage.py migrate` roda limpo; todas as entidades visíveis no Django Admin. | ✅ Concluído — `backend_django/` criado (Django 5.2 + DRF + drf-spectacular), 16 entidades modeladas em 4 apps (`usuarios`, `cadastros`, `estoque`, `operacoes`), FKs de depto/lotação normalizadas, `Usuario` já como `AUTH_USER_MODEL`, migrations aplicadas contra o Postgres real, 16 models visíveis no Admin. |
+| **2 — Cadastros (CRUD simples)** | DRF ViewSets para Departamentos, Delegacias, Lotações, Policiais, Fornecedores, Patrimônios, Armas, Compras, Itens, Opções de Menu | Endpoints respondem com o mesmo formato de payload hoje usado pelo frontend; testado manualmente contra as telas React existentes. | 🔶 Em andamento — 11 `ModelViewSet`s criados e validados manualmente via `curl` (payload snake_case, FKs expostas como `*_id`, sem paginação, schema OpenAPI com 22 paths). Falta validar contra as telas React reais (ainda só testado por linha de comando) e cobrir `Bens` (incluído) e demais recursos de cadastro fora da lista original se necessário. |
+| **3 — Núcleo de negócio** | Autenticação/RBAC real, Cautelas (máquina de estados + estoque), Serviços, Movimentos, e-mail SMTP, assinatura digital | Fluxo completo de cautela (criar → assinar → devolver → confirmar por e-mail) funcionando ponta a ponta; testes automatizados cobrindo esse fluxo. | ⬜ Não iniciado |
+| **4 — Documentos** | Geração de PDF (cautela/serviço) e XLSX (itens/cautelas) | PDFs e planilhas gerados batem visualmente com os documentos hoje gerados pelo Node. | ⬜ Não iniciado |
+| **5 — OpenAPI e corte final** | `/api/schema/` e `/api/docs/` publicados; `server.ts`/`serverDb.ts`/`server_http.py`/`db.json` aposentados; `docker-compose.yml` com um único serviço de backend usando Docker secrets | Sistema roda 100% via Django; nenhum dos backends antigos é mais necessário para a aplicação funcionar. | ⬜ Não iniciado — `/api/schema/`/`/api/docs/` já publicados desde a Fase 1, mas aposentar os backends antigos e consolidar o `docker-compose.yml` depende das Fases 3 e 4 estarem prontas. |
 
 ## 9. Riscos
 
@@ -155,4 +155,6 @@ Estes itens já foram implementados no repositório, independentemente da migra�
 
 - O MCP **context7** (`@upstash/context7-mcp`) foi configurado no repositório (`.mcp.json` + `.claude/settings.json`, auto-aprovado) para consulta de documentação atualizada de bibliotecas durante a implementação. Antes de gerar código de cada peça nova (Django, DRF, `drf-spectacular`, `djangorestframework-simplejwt`, `psycopg`, `weasyprint`/`reportlab`, `openpyxl`), consultar o context7 para confirmar a API/versão atual em vez de confiar só em conhecimento estático, dado o ritmo de mudança dessas bibliotecas.
 - Requer reiniciar a sessão do Claude Code (ou `/mcp`) para o servidor `context7` ficar disponível, já que foi registrado depois do início da sessão atual.
-- **Primeira tarefa ao reiniciar:** iniciar a **Fase 1** (seção 8) — scaffolding do projeto Django + DRF em `backend_django/` (ao lado de `backend_python/`, mantido até o corte final da Fase 5) e modelagem das 16 entidades com migrations + Django Admin habilitado, usando o context7 para validar as práticas atuais de configuração (`settings.py`, estrutura de apps, `drf-spectacular`) antes de escrever o código.
+- **Fase 1 concluída:** scaffolding do projeto Django + DRF em `backend_django/` (ao lado de `backend_python/`, mantido até o corte final da Fase 5) e modelagem das 16 entidades com migrations + Django Admin habilitado, validado via context7 (Django 5.2, `drf-spectacular`).
+- **Fase 2 em andamento:** DRF `ViewSet`s dos cadastros/estoque simples (departamentos, delegacias, lotações, policiais, fornecedores, patrimônios, opções de menu, compras, itens, bens, armas) já criados e validados manualmente via `curl`; falta validar contra as telas React reais.
+- **Próxima tarefa:** Fase 3 (seção 8) — autenticação/RBAC real, máquina de estados de Cautela com efeitos no estoque (`transaction.atomic()`), Serviços, Movimentos, e-mail SMTP e assinatura digital.
