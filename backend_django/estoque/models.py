@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from cadastros.models import Fornecedor
@@ -52,6 +53,11 @@ class Compra(BaseModel):
     )
     dt_val = models.DateField(null=True, blank=True)
     obs = models.TextField(blank=True)
+    # Dono do registro para a regra "só edita o que criou" (Fase 3, RBAC).
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="compras_criadas", null=True, blank=True,
+    )
 
     def __str__(self):
         return f"Compra {self.numero_nota_fiscal or self.id} — {self.fornecedor}"
@@ -86,6 +92,10 @@ class Item(BaseModel):
     # Existem em dados reais (db.json) fora da interface TS declarada.
     tipo = models.CharField(max_length=100, blank=True)
     modelo = models.CharField(max_length=100, blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="itens_criados", null=True, blank=True,
+    )
 
     def __str__(self):
         return self.descricao
@@ -103,6 +113,10 @@ class BemIndividual(BaseModel):
     sexo = models.CharField(max_length=20, blank=True)
     dt_val = models.DateField(null=True, blank=True)
     obs = models.TextField(blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="bens_criados", null=True, blank=True,
+    )
 
     def __str__(self):
         return f"{self.item} — {self.patrimonio or self.serie}"
@@ -122,6 +136,10 @@ class Arma(BaseModel):
     quantidade_carregadores = models.IntegerField(null=True, blank=True)
     capacidade = models.IntegerField(null=True, blank=True)
     numero_serie = models.CharField(max_length=100, blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="armas_criadas", null=True, blank=True,
+    )
 
     def __str__(self):
         return f"{self.tipo} {self.marca} {self.modelo} — {self.numero_serie}"

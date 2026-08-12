@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'core',
     'usuarios',
@@ -171,6 +173,19 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -179,3 +194,21 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+# E-mail (Fase 3) — nomes de env var idênticos aos do server.ts (Node)
+# por consistência de infra; OAuth2 (SMTP_OAUTH_*) fica fora do escopo
+# desta fase (não usado hoje, comentado no .env.example).
+SMTP_HOST = os.getenv('SMTP_HOST')
+if SMTP_HOST and os.getenv('SMTP_USER'):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = SMTP_HOST
+    EMAIL_PORT = int(os.getenv('SMTP_PORT', '587'))
+    EMAIL_HOST_USER = os.getenv('SMTP_USER')
+    EMAIL_HOST_PASSWORD = read_secret('smtp_password')
+    EMAIL_USE_TLS = True
+else:
+    # Equivalente ao "modo simulado" do Node, sem depender de rede
+    # externa (Ethereal) — só imprime o e-mail no console do servidor.
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = '"SGA - Armaria & Material Bélico" <no-reply@sga.ce.gov.br>'

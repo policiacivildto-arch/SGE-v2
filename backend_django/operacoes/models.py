@@ -6,6 +6,22 @@ from core.models import BaseModel
 from estoque.models import Arma, Item, StatusItemChoices
 
 
+class SequenciaNumeracao(BaseModel):
+    """Contador race-safe para numero/codigo sequenciais (Cautela/Servico).
+
+    Substitui o "escaneia o array e incrementa" de serverDb.ts
+    (getNextCode/getNextCautelaNumber), que só era seguro por acidente
+    do Node ser single-threaded. Usado via select_for_update() em
+    operacoes/services.py.
+    """
+
+    chave = models.CharField(max_length=50, unique=True)
+    ultimo_valor = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.chave}={self.ultimo_valor}"
+
+
 class Servico(BaseModel):
     # Geração sequencial (getNextCode em serverDb.ts) fica para a Fase 3.
     codigo = models.CharField(max_length=20, unique=True)
@@ -33,6 +49,11 @@ class Servico(BaseModel):
     # Hoje sem id de referência nos dados (só texto livre em server.ts) —
     # candidato a virar FK → Policial numa fase futura, se necessário.
     armeiro = models.CharField(max_length=255, blank=True)
+    # Dono do registro para a regra "só edita o que criou" (Fase 3, RBAC).
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="servicos_criados", null=True, blank=True,
+    )
 
     def __str__(self):
         return self.codigo
