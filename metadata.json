@@ -1,6 +1,0 @@
-{
-  "name": "SGA - Sistema de Gestão de Armas",
-  "description": "Sistema de Gestão de Armas, estoque, policiais, lotações, cautelas e registros de serviço",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
