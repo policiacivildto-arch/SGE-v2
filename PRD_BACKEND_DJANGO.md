@@ -150,3 +150,9 @@ Estes itens já foram implementados no repositório, independentemente da migra�
 - Sessão (`SessionAuthentication`) ou JWT (`simplejwt`) para autenticação — decisão de arquitetura ainda em aberto.
 - Destino final do Node: eliminado ou mantido só como servidor de estáticos.
 - Necessidade real do endpoint `admin/backfill-relacional` (script de correção de dados legados).
+
+## 11. Processo de implementação
+
+- O MCP **context7** (`@upstash/context7-mcp`) foi configurado no repositório (`.mcp.json` + `.claude/settings.json`, auto-aprovado) para consulta de documentação atualizada de bibliotecas durante a implementação. Antes de gerar código de cada peça nova (Django, DRF, `drf-spectacular`, `djangorestframework-simplejwt`, `psycopg`, `weasyprint`/`reportlab`, `openpyxl`), consultar o context7 para confirmar a API/versão atual em vez de confiar só em conhecimento estático, dado o ritmo de mudança dessas bibliotecas.
+- Requer reiniciar a sessão do Claude Code (ou `/mcp`) para o servidor `context7` ficar disponível, já que foi registrado depois do início da sessão atual.
+- **Primeira tarefa ao reiniciar:** iniciar a **Fase 1** (seção 8) — scaffolding do projeto Django + DRF em `backend_django/` (ao lado de `backend_python/`, mantido até o corte final da Fase 5) e modelagem das 16 entidades com migrations + Django Admin habilitado, usando o context7 para validar as práticas atuais de configuração (`settings.py`, estrutura de apps, `drf-spectacular`) antes de escrever o código.

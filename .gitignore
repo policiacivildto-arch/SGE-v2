@@ -5,6 +5,10 @@ backend_python/**/__pycache__/
 *.pyc
 backend_python/.venv/
 backend_python/venv/
+backend_django/__pycache__/
+backend_django/**/__pycache__/
+backend_django/.venv/
+backend_django/venv/
 
 # Build
 dist/
@@ -31,6 +35,10 @@ npm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Configuração local do Claude Code (MCP, settings) — não compartilhar
+.mcp.json
+.claude/settings.json
 
 # Relatórios gerados localmente (Sonar, etc.)
 relatorio_sonarqube_sga.pdf
