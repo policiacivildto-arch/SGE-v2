@@ -4440,7 +4440,7 @@ function CadFornecedorView() {
   const handleDelete = async (id, nome) => {
     if (!confirm(`Tem certeza que deseja excluir o fornecedor "${nome}"?`)) return;
     try {
-      await apiService.delete('fornecedores', id);
+      await apiService.remove('fornecedores', id);
       loadData();
     } catch (err) {
       alert('Erro ao excluir fornecedor: ' + err.message);

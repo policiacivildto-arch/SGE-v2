@@ -179,6 +179,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'core.pagination.SGAPageNumberPagination',
+    'PAGE_SIZE': 10000,
 }
 
 SIMPLE_JWT = {

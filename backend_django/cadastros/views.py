@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import viewsets
 
 from usuarios.permissions import SGARolePermission
@@ -48,6 +49,17 @@ class FornecedorViewSet(viewsets.ModelViewSet):
     permission_classes = [SGARolePermission]
     section = "cadastros"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(nome__icontains=search) | Q(cnpj__icontains=search)
+                | Q(contato__icontains=search) | Q(tel__icontains=search)
+                | Q(email__icontains=search) | Q(categoria__icontains=search)
+            )
+        return qs
+
 
 class PatrimonioViewSet(viewsets.ModelViewSet):
     queryset = Patrimonio.objects.all().order_by("codigo")
@@ -61,3 +73,13 @@ class OpcaoMenuViewSet(viewsets.ModelViewSet):
     serializer_class = OpcaoMenuSerializer
     permission_classes = [SGARolePermission]
     section = "cadastros"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        grupo = self.request.query_params.get("grupo")
+        ativo = self.request.query_params.get("ativo")
+        if grupo:
+            qs = qs.filter(grupo=grupo)
+        if ativo is not None:
+            qs = qs.filter(ativo=ativo.lower() == "true")
+        return qs

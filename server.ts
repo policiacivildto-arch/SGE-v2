@@ -482,112 +482,11 @@ async function startServer() {
     });
   });
 
-  // 5. Opcoes Menu ViewSet
-  app.get("/api/opcoes-menu", (req, res) => {
-    const { search, ordering, grupo, ativo } = req.query;
-    const filters: any = {};
-    if (grupo) filters.grupo = grupo;
-    if (ativo) filters.ativo = ativo;
+  // 5. Opcoes Menu — cortado para o backend Django na Fase 5 (PRD_BACKEND_DJANGO.md,
+  // seção 12.1). Cai no proxy /api registrado mais abaixo.
 
-    const list = serverDb.queryCollection<any>(
-      "opcoes-menu",
-      search as string,
-      ["grupo", "valor", "rotulo"],
-      (ordering as string) || "ordem",
-      filters
-    );
-    respondList(res, list);
-  });
-
-  app.post("/api/opcoes-menu", (req, res) => {
-    const newItem = serverDb.create("opcoes-menu", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/opcoes-menu/:id", (req, res) => {
-    const updated = serverDb.update("opcoes-menu", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/opcoes-menu/:id", (req, res) => {
-    const deleted = serverDb.remove("opcoes-menu", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
-
-  // 6. Departamentos
-  app.get("/api/departamentos", (req, res) => {
-    const { search, ordering, ativo } = req.query;
-    const filters: any = {};
-    if (ativo) filters.ativo = ativo;
-
-    const list = serverDb.queryCollection<any>(
-      "departamentos",
-      search as string,
-      ["nome", "sigla"],
-      (ordering as string) || "nome",
-      filters
-    );
-    respondList(res, list);
-  });
-
-  app.post("/api/departamentos", (req, res) => {
-    const newItem = serverDb.create("departamentos", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/departamentos/:id", (req, res) => {
-    const updated = serverDb.update("departamentos", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/departamentos/:id", (req, res) => {
-    const deleted = serverDb.remove("departamentos", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
-
-  // 7. Delegacias
-  app.get("/api/delegacias", (req, res) => {
-    const { search, ordering, ativo, departamento } = req.query;
-    const filters: any = {};
-    if (ativo) filters.ativo = ativo;
-    if (departamento) filters.departamento_id = departamento;
-
-    const list = serverDb.queryCollection<any>(
-      "delegacias",
-      search as string,
-      ["nome", "codigo", "cidade"],
-      (ordering as string) || "nome",
-      filters
-    ).map(del => {
-      const depto = serverDb.getById<any>("departamentos", del.departamento_id);
-      return {
-        ...del,
-        departamento_nome: depto ? depto.nome : ""
-      };
-    });
-    respondList(res, list);
-  });
-
-  app.post("/api/delegacias", (req, res) => {
-    const newItem = serverDb.create("delegacias", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/delegacias/:id", (req, res) => {
-    const updated = serverDb.update("delegacias", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/delegacias/:id", (req, res) => {
-    const deleted = serverDb.remove("delegacias", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
+  // 6/7. Departamentos e Delegacias — cortados para o backend Django na
+  // Fase 5 (PRD_BACKEND_DJANGO.md, seção 12.1). Caem no proxy /api.
 
   // 8. Usuarios
   app.get("/api/usuarios", (req, res) => {
@@ -635,37 +534,8 @@ async function startServer() {
   });
 
   // 9. Lotacoes
-  app.get("/api/lotacoes", (req, res) => {
-    const { search, ordering, depto } = req.query;
-    const filters: any = {};
-    if (depto) filters.depto = depto;
-
-    const list = serverDb.queryCollection<any>(
-      "lotacoes",
-      search as string,
-      ["depto", "nome", "cidade", "resp", "area_atuacao", "ais", "seccional"],
-      (ordering as string) || "nome",
-      filters
-    );
-    respondList(res, list);
-  });
-
-  app.post("/api/lotacoes", (req, res) => {
-    const newItem = serverDb.create("lotacoes", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/lotacoes/:id", (req, res) => {
-    const updated = serverDb.update("lotacoes", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/lotacoes/:id", (req, res) => {
-    const deleted = serverDb.remove("lotacoes", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
+  // Lotações — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
   // 10. Policiais
   app.get("/api/policiais", (req, res) => {
@@ -702,34 +572,8 @@ async function startServer() {
   });
 
   // 11. Fornecedores
-  app.get("/api/fornecedores", (req, res) => {
-    const { search, ordering } = req.query;
-    const list = serverDb.queryCollection<any>(
-      "fornecedores",
-      search as string,
-      ["nome", "cnpj", "contato", "tel", "email", "categoria"],
-      (ordering as string) || "nome",
-      {}
-    );
-    respondList(res, list);
-  });
-
-  app.post("/api/fornecedores", (req, res) => {
-    const newItem = serverDb.create("fornecedores", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/fornecedores/:id", (req, res) => {
-    const updated = serverDb.update("fornecedores", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/fornecedores/:id", (req, res) => {
-    const deleted = serverDb.remove("fornecedores", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
+  // 11. Fornecedores — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
   // 12. Compras
   app.get("/api/compras", (req, res) => {
