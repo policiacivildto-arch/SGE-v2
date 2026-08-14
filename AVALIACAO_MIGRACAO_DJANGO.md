@@ -4,6 +4,8 @@
 **Escopo:** Avaliar a viabilidade de migrar o backend do sistema SGA (Polícia Civil do Ceará) para Django, mantendo o domínio de negócio atual (armamento, policiais, cautelas, lotações, assinatura digital via e-mail).
 **Pré-requisito de leitura:** [PARECER_ESTRUTURA_AMBIENTE.md](PARECER_ESTRUTURA_AMBIENTE.md) — este documento não repete os achados de segurança/arquitetura já registrados lá, mas depende deles como pano de fundo.
 
+> **Atualização (14/08/2026):** a migração avaliada aqui foi executada por completo — ver [PRD_BACKEND_DJANGO.md](PRD_BACKEND_DJANGO.md) para o plano faseado e o estado final (Fases 1-6 concluídas). Este documento é mantido como registro da análise de viabilidade original.
+
 ---
 
 ## 0. Achado que muda o enquadramento do pedido

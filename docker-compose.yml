@@ -36,15 +36,16 @@ services:
         target: db_name_SGA_BACK
       - source: django_secret_key
         target: django_secret_key_SGA_BACK
+      - source: smtp_password
+        target: smtp_password_SGA_BACK
     environment:
       DEBUG: "True"
       ALLOWED_HOSTS: "*"
       DB_HOST: "db"
       DB_PORT: "5432"
-    volumes:
-      # Só para o management command migrar_db_json (import único e manual
-      # dos dados legados) — não usado no boot normal do container.
-      - ./db.json:/app/db.json:ro
+      SMTP_HOST: "${SMTP_HOST:-smtp-mail.outlook.com}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -57,14 +58,7 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     container_name: sga_frontend
     restart: always
-    secrets:
-      - source: smtp_password
-        target: SMTP_PASS_SGA_BACK
     environment:
-      SMTP_HOST: "${SMTP_HOST:-smtp-mail.outlook.com}"
-      SMTP_PORT: "${SMTP_PORT:-587}"
-      SMTP_USER: "${SMTP_USER:-}"
-      SMTP_SECURE: "${SMTP_SECURE:-false}"
       DJANGO_BACKEND_URL: "http://backend:8000"
     ports:
       - "3000:3000"

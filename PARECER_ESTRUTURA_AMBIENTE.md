@@ -3,6 +3,8 @@
 **Data:** 12/08/2026
 **Escopo:** Análise da organização do repositório, arquitetura de back-end/front-end, configuração de ambiente e segredos.
 
+> **Atualização (14/08/2026):** os problemas estruturais descritos abaixo — dois back-ends divergentes, autenticação client-side, segredos versionados — foram endereçados pela migração completa para Django + PostgreSQL (ver [PRD_BACKEND_DJANGO.md](PRD_BACKEND_DJANGO.md), Fases 1-6, todas concluídas). Este documento é mantido como registro histórico do estado que motivou a migração, não descreve mais o estado atual do sistema.
+
 ---
 
 ## 1. Resumo Executivo

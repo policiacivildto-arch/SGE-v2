@@ -1,6 +1,8 @@
 # 🚀 Guia Completo de Implantação e Execução - SGA (Sistema de Gestão de Armaria)
 
-Este guia cobre todas as instruções passo a passo para executar o SGA em ambiente **Local**, **Servidor Web / Nuvem** e como empacotar para aplicativos móveis **Android e iOS**.
+Este guia cobre como executar o SGA localmente (Docker ou serviços separados) e como empacotar para aplicativos móveis Android e iOS.
+
+> **Arquitetura atual (pós Fase 6 da migração para Django — ver [PRD_BACKEND_DJANGO.md](PRD_BACKEND_DJANGO.md)):** o backend real é **Django + Django REST Framework**, em `backend_django/`, rodando contra **PostgreSQL**. O frontend React é servido por um processo Node (`server.ts`) que faz só duas coisas: serve o build estático e faz proxy de `/api/*` para o Django. Não existe mais backend em Python/FastAPI (`backend_python/`, removido) nem armazenamento em `db.json` (dados migrados para o Postgres).
 
 ---
 
@@ -8,124 +10,112 @@ Este guia cobre todas as instruções passo a passo para executar o SGA em ambie
 
 ```text
 / (Raiz do Projeto)
-│── backend_python/       # Backend FastAPI (Python) para produção local e nuvem
-│   ├── main.py           # Endpoints REST e lógica de e-mail / assinaturas
-│   ├── database.py       # Conexão ORM SQLAlchemy (SQLite / PostgreSQL)
-│   ├── models.py         # Tabelas de Policiais, Bens, Cautelas e Movimentações
-│   ├── schemas.py        # Validação de dados (Pydantic)
-│   ├── seed_db.py        # Script para importar dados iniciais
-│   ├── requirements.txt  # Dependências Python
-│   └── .env.example      # Exemplo de variáveis de ambiente do backend
+│── backend_django/       # Backend Django + DRF (único backend real)
+│   ├── config/            # settings.py, urls.py, wsgi.py
+│   ├── cadastros/         # Departamentos, Delegacias, Lotações, Policiais, Fornecedores, Patrimônios
+│   ├── estoque/           # Compras, Itens, Bens Individuais, Armas
+│   ├── operacoes/         # Serviços, Cautelas (máquina de estados), Movimentos
+│   ├── usuarios/          # Autenticação JWT, RBAC, CRUD de usuários
+│   ├── core/               # Utilitários compartilhados + management command de migração de dados legados
+│   ├── requirements.txt
+│   └── entrypoint.sh      # Lê segredos, roda migrations + seed, inicia o servidor
 │
-│── src/                  # Frontend Web & Mobile (React + Vite + Tailwind)
-│   ├── pages/            # Páginas (Cautelas, Policiais, Armaria, Relatórios)
-│   ├── components/       # Componentes reutilizáveis
-│   └── services/         # Serviços de API e comunicação HTTP
+│── src/                  # Frontend Web & Mobile (React + Vite)
+│   ├── pages/             # Páginas (Cautelas, Policiais, Itens, Serviços, Relatórios)
+│   ├── components/        # Componentes reutilizáveis
+│   ├── context/           # AuthContext (login/logout JWT real)
+│   └── services/          # api.js (cliente HTTP com JWT + refresh automático)
 │
-│── server.ts             # Backend de testes rápido (Node.js/Express)
-│── serverDb.ts           # Banco simulado de testes local (db.json)
-│── DEPLOYMENT_GUIDE.md   # Este guia
-│── MOBILE_SETUP.md       # Guia específico para Android e iOS
-└── GITHUB_EXPORT.md      # Instruções de exportação para o GitHub
+│── server.ts              # Servidor estático do frontend + proxy /api/* → Django
+│── docker-compose.yml     # db (Postgres) + backend (Django) + frontend (Node)
+│── secrets/                # Segredos locais (gitignored) — ver secrets/*.txt.example
+│── PRD_BACKEND_DJANGO.md  # Histórico completo da migração e arquitetura-alvo
+│── MOBILE_SETUP.md        # Guia específico para Android e iOS
+└── GITHUB_EXPORT.md       # Instruções de exportação para o GitHub
 ```
 
 ---
 
-## 1. 🐍 Execução Local do Backend em Python (FastAPI)
+## 1. 🐳 Execução via Docker (recomendado)
 
-### Passo 1: Instalar o Python e criar um ambiente virtual
+Sobe os três serviços (Postgres, Django, frontend) de uma vez.
+
+### Passo 1: Criar os segredos locais
 ```bash
-# Navegar até a pasta do backend
-cd backend_python
-
-# Criar o ambiente virtual (venv)
-python -m venv venv
-
-# Ativar o ambiente virtual:
-# No Windows (Command Prompt):
-venv\Scripts\activate
-# No Linux / macOS:
-source venv/bin/activate
+cd secrets
+cp db_user.txt.example db_user.txt
+cp db_password.txt.example db_password.txt
+cp db_name.txt.example db_name.txt
+cp smtp_password.txt.example smtp_password.txt   # só necessário se for enviar e-mail de verdade
+python3 -c "import secrets; print(secrets.token_urlsafe(50))" > django_secret_key.txt
 ```
+Edite os arquivos com valores reais (nunca comitar `secrets/*.txt` — já está no `.gitignore`).
 
-### Passo 2: Instalar as dependências do Python
+### Passo 2: Subir os containers
 ```bash
+docker compose up -d --build
+```
+- Postgres: porta `5432`
+- Django: só acessível internamente via proxy do frontend (não publicado no host)
+- Frontend: `http://localhost:3000`
+
+O `entrypoint.sh` do Django roda `migrate` e `seed_usuarios` (usuários de demonstração) automaticamente no boot.
+
+### Passo 3 (só na primeira vez, se for importar dados de um `db.json` legado)
+```bash
+docker compose exec backend python manage.py migrar_db_json
+```
+Não roda automaticamente — é um import único e manual (ver `PRD_BACKEND_DJANGO.md`, seção 12.4).
+
+### Login de demonstração
+| E-mail | Senha | Papel |
+|---|---|---|
+| `admin@pc.ce.gov.br` | `Admin@1234` | Administrador |
+| `armeiro@pc.ce.gov.br` | `Armeiro@1234` | Armeiro |
+| `admin.serv@pc.ce.gov.br` | `Admin@1234` | Administrativo |
+
+---
+
+## 2. 🐍 Execução local do backend Django (fora do Docker)
+
+```bash
+cd backend_django
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env         # ajuste DB_HOST/db_user/db_password/db_name locais
+python manage.py migrate
+python manage.py seed_usuarios
+python manage.py runserver 0.0.0.0:8000
 ```
+> Documentação interativa da API (Swagger): `http://localhost:8000/api/docs/`
+> Schema OpenAPI: `http://localhost:8000/api/schema/`
 
-### Passo 3: Configurar as Variáveis de Ambiente
-Crie um arquivo `.env` na pasta `backend_python/`:
-```env
-DATABASE_URL=sqlite:///./sga_database.db
-HOST=0.0.0.0
-PORT=8000
-DEBUG=True
-```
-
-### Passo 4: Criar as Tabelas e Semeá-las com Dados Iniciais
-```bash
-python seed_db.py
-```
-
-### Passo 5: Iniciar o Servidor FastAPI
-```bash
-python main.py
-# Ou usando Uvicorn diretamente:
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-> O backend estará rodando em: `http://localhost:8000`
-> A documentação Swagger interativa das rotas estará disponível em: `http://localhost:8000/docs`
+Sem os segredos de banco configurados, o Django cai automaticamente em SQLite local (`db.sqlite3`) — conveniente para dev, mas confirme que não é isso que está rodando em produção.
 
 ---
 
-## 2. 💻 Execução Local do Frontend (React)
+## 3. 💻 Execução local do frontend (React)
 
 Em um novo terminal (na raiz do projeto):
 
 ```bash
-# 1. Instalar as dependências do Node.js
 npm install
-
-# 2. Iniciar o servidor de desenvolvimento do Frontend
 npm run dev
 ```
-> O frontend estará rodando em: `http://localhost:3000` ou `http://localhost:5173`
+> Frontend em `http://localhost:3000`. Em dev, o `server.ts` já faz proxy de `/api/*` para `DJANGO_BACKEND_URL` (default `http://backend:8000`, ajuste via `.env`/variável de ambiente se o Django não estiver rodando via Docker).
 
 ---
 
-## 3. 🌐 Implantação do Servidor Web (Nuvem / Docker / VPS)
+## 4. 🌐 Implantação em servidor / Nuvem
 
-### Opção A: Implantação com Docker (Recomendado)
-Crie um arquivo `Dockerfile.backend` na pasta `backend_python/`:
-
-```dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### Opção B: PostgreSQL para Banco de Dados com Docker Secrets
-Para conectar o Python a um banco de dados PostgreSQL seguro usando Docker Secrets:
-1. As credenciais e senhas sensíveis são armazenadas na pasta `secrets/`:
-   - `secrets/db_user.txt`
-   - `secrets/db_password.txt`
-   - `secrets/db_name.txt`
-   - `secrets/smtp_password.txt`
-2. O `docker-compose.yml` monta os segredos em `/run/secrets/` nos containers sem expor credenciais em arquivos `.env`.
-3. O ORM do Python em `database.py` lê os segredos automaticamente do diretório seguro `/run/secrets/`.
-
+O `docker-compose.yml` já está pronto para produção com Docker Secrets (nunca `.env` para credenciais reais — ver `PRD_BACKEND_DJANGO.md`, seção 5.3):
+1. Gere segredos reais em `secrets/*.txt` no servidor (nunca versionados).
+2. Ajuste `DEBUG`/`ALLOWED_HOSTS` do serviço `backend` no `docker-compose.yml` para produção (`DEBUG: "False"`, `ALLOWED_HOSTS` com o domínio real).
+3. `docker compose up -d --build`.
 
 ---
 
-## 4. 📱 Aplicativo Móvel (Android & iOS)
+## 5. 📱 Aplicativo Móvel (Android & iOS)
 
 Consulte o documento dedicado [`MOBILE_SETUP.md`](./MOBILE_SETUP.md) para instruções detalhadas de como compilar o APK Android ou o projeto Xcode para iOS usando **Capacitor**.

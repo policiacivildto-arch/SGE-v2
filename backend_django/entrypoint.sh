@@ -16,6 +16,7 @@ vars=(
     db_password
     db_name
     django_secret_key
+    smtp_password
 )
 
 bashrc_additions=""

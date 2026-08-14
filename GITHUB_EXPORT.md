@@ -43,8 +43,8 @@ git push -u origin main
 ## 💡 Estrutura de Arquivos Inclusa no Repositório GitHub
 
 Ao fazer o upload, seu repositório conterá:
-- `backend_python/`: Backend em Python FastAPI completo com banco de dados SQLAlchemy (SQLite/PostgreSQL), endpoints REST, rotas de cautela, devolução e geração de assinatura digital SVG por e-mail.
+- `backend_django/`: Backend real em Django + Django REST Framework, PostgreSQL, autenticação JWT, máquina de estados de cautela, geração de PDF/XLSX e assinatura digital por e-mail (ver `PRD_BACKEND_DJANGO.md`).
 - `src/`: Aplicação web responsiva em React.
-- `server.ts` & `serverDb.ts`: Backend Node.js pré-configurado de demonstração rápida.
+- `server.ts`: Servidor Node.js que serve o build do frontend e faz proxy de `/api/*` para o Django.
 - `DEPLOYMENT_GUIDE.md`: Guia passo a passo de implantação local e em nuvem.
 - `MOBILE_SETUP.md`: Instruções de compilação do app para Android e iOS.
