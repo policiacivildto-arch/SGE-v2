@@ -42,6 +42,18 @@ class PolicialViewSet(viewsets.ModelViewSet):
     permission_classes = [SGARolePermission]
     section = "cadastros"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(matricula__icontains=search) | Q(cpf__icontains=search)
+                | Q(nome__icontains=search) | Q(cargo__icontains=search)
+                | Q(departamento__nome__icontains=search)
+                | Q(lotacao__nome__icontains=search)
+            )
+        return qs
+
 
 class FornecedorViewSet(viewsets.ModelViewSet):
     queryset = Fornecedor.objects.all().order_by("nome")

@@ -86,6 +86,11 @@ class PolicialSerializer(serializers.ModelSerializer):
     # lendo estes campos somente-leitura em vez dos `*_id` normalizados.
     depto = serializers.SerializerMethodField()
     lotacao = serializers.SerializerMethodField()
+    # A importação em lote (main.jsx, CadPoliciaisView.handleSaveBatch)
+    # manda `cpf: null` quando o CPF vem vazio na planilha colada —
+    # CharField do model não é nullable, então aceita `null` aqui e
+    # normaliza para string vazia.
+    cpf = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Policial
@@ -102,6 +107,8 @@ class PolicialSerializer(serializers.ModelSerializer):
         return obj.lotacao.nome if obj.lotacao_id else ""
 
     def validate(self, attrs):
+        if attrs.get("cpf") is None and "cpf" in attrs:
+            attrs["cpf"] = ""
         # CadPoliciaisView (main.jsx, Fase 5) ainda envia `depto`/`lotacao`
         # como texto livre no create/update (add individual e importação
         # em lote) — diferente de Lotacao, aqui as duas FKs são

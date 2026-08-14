@@ -537,41 +537,9 @@ async function startServer() {
   // Lotações — cortado para o backend Django na Fase 5
   // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
-  // 10. Policiais
-  app.get("/api/policiais", (req, res) => {
-    const { search, ordering, depto, lotacao } = req.query;
-    const filters: any = {};
-    if (depto) filters.depto = depto;
-    if (lotacao) filters.lotacao = lotacao;
+  // 10. Policiais — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
-    const list = serverDb.queryCollection<any>(
-      "policiais",
-      search as string,
-      ["matricula", "cpf", "nome", "cargo", "depto", "lotacao"],
-      (ordering as string) || "nome",
-      filters
-    );
-    respondList(res, list);
-  });
-
-  app.post("/api/policiais", (req, res) => {
-    const newItem = serverDb.create("policiais", req.body);
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/policiais/:id", (req, res) => {
-    const updated = serverDb.update("policiais", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/policiais/:id", (req, res) => {
-    const deleted = serverDb.remove("policiais", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
-
-  // 11. Fornecedores
   // 11. Fornecedores — cortado para o backend Django na Fase 5
   // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
