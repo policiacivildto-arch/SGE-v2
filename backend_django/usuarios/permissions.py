@@ -2,6 +2,19 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from .models import Role
 
+
+class IsAdminRole(BasePermission):
+    """Restringe a `UsuarioViewSet` a usuários com `role == Role.ADMIN`.
+
+    Gestão de usuários não é regida pelas regras de `section` de
+    `SGARolePermission` (cadastros/estoque/servicos) — é admin-only
+    independente de seção.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role == Role.ADMIN)
+
 _ACTION_BY_METHOD = {
     "GET": "view",
     "HEAD": "view",

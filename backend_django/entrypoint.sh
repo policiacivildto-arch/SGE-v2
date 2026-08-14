@@ -5,10 +5,10 @@
 # exporta como variável de ambiente (nome sem o sufixo) e grava em
 # ~/.bashrc para qualquer subshell interativo também enxergar.
 #
-# Mesmo padrão de backend_python/entrypoint.sh: config/settings.py
-# (read_secret) já cai em os.getenv(secret_name) quando o arquivo
-# /run/secrets/<nome> sem sufixo não existe — então basta exportar com
-# o mesmo nome que o código já espera, sem precisar alterar settings.py.
+# config/settings.py (read_secret) já cai em os.getenv(secret_name)
+# quando o arquivo /run/secrets/<nome> sem sufixo não existe — então
+# basta exportar com o mesmo nome que o código já espera, sem precisar
+# alterar settings.py.
 set -euo pipefail
 
 vars=(
@@ -33,5 +33,7 @@ done
 if [ -n "$bashrc_additions" ]; then
     printf "%b" "$bashrc_additions" >> ~/.bashrc
 fi
+
+python manage.py migrate --noinput
 
 exec "$@"

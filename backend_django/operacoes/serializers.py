@@ -18,15 +18,27 @@ class ServicoSerializer(serializers.ModelSerializer):
         source="lotacao", queryset=Lotacao.objects.all(), allow_null=True, required=False
     )
     criado_por_id = serializers.PrimaryKeyRelatedField(source="criado_por", read_only=True)
+    # Compatibilidade: db.json guardava `depto`/`lotacao` como texto
+    # solto (snapshot) ao lado dos ids; telas que só exibem continuam
+    # lendo estes campos somente-leitura em vez dos `*_id` normalizados.
+    depto = serializers.SerializerMethodField()
+    lotacao_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = Servico
         fields = [
             "id", "codigo", "policial_id", "matricula", "policial_nome",
-            "departamento_id", "lotacao_id", "tipo", "data_rec", "status",
-            "serie", "obs", "armeiro", "criado_por_id", "criado_em", "atualizado_em",
+            "departamento_id", "lotacao_id", "depto", "lotacao_nome", "tipo",
+            "data_rec", "status", "serie", "obs", "armeiro", "criado_por_id",
+            "criado_em", "atualizado_em",
         ]
         read_only_fields = ["codigo"]
+
+    def get_depto(self, obj):
+        return obj.departamento.nome if obj.departamento_id else ""
+
+    def get_lotacao_nome(self, obj):
+        return obj.lotacao.nome if obj.lotacao_id else ""
 
 
 class MovimentoSerializer(serializers.ModelSerializer):
@@ -67,14 +79,20 @@ class CautelaSerializer(serializers.ModelSerializer):
     departamento_id = serializers.PrimaryKeyRelatedField(source="departamento", read_only=True)
     lotacao_id = serializers.PrimaryKeyRelatedField(source="lotacao", read_only=True)
     item_id = serializers.PrimaryKeyRelatedField(source="item", read_only=True)
+    # Compatibilidade: db.json guardava `depto`/`lotacao`/`categoria` como
+    # texto solto (snapshot) na Cautela; telas que só exibem continuam
+    # lendo estes campos somente-leitura em vez dos `*_id` normalizados.
+    depto = serializers.SerializerMethodField()
+    lotacao_nome = serializers.SerializerMethodField()
+    categoria = serializers.SerializerMethodField()
 
     class Meta:
         model = Cautela
         fields = [
             "id", "numero", "data_saida", "data_prev", "data_dev",
             "policial_id", "matricula", "policial_nome",
-            "departamento_id", "lotacao_id",
-            "item_id", "item_desc", "qtd", "status", "condicao_dev",
+            "departamento_id", "lotacao_id", "depto", "lotacao_nome",
+            "item_id", "item_desc", "categoria", "qtd", "status", "condicao_dev",
             "motivo_recolhimento", "nup", "numero_io_bo", "numero_serie_reparo",
             "obs_dev", "serie", "assinatura_digital", "assinatura_dev",
             "token_confirmacao", "token_confirmacao_dev", "email_policial",
@@ -84,7 +102,19 @@ class CautelaSerializer(serializers.ModelSerializer):
             "data_assinatura", "data_assinatura_dev",
             "criado_em", "atualizado_em",
         ]
-        read_only_fields = [f for f in fields if f not in _CAUTELA_EDITAVEIS]
+        read_only_fields = [
+            f for f in fields
+            if f not in _CAUTELA_EDITAVEIS and f not in ("depto", "lotacao_nome", "categoria")
+        ]
+
+    def get_depto(self, obj):
+        return obj.departamento.nome if obj.departamento_id else ""
+
+    def get_lotacao_nome(self, obj):
+        return obj.lotacao.nome if obj.lotacao_id else ""
+
+    def get_categoria(self, obj):
+        return obj.item.categoria if obj.item_id else ""
 
 
 # --- Serializers de entrada das actions customizadas (não são ModelSerializer

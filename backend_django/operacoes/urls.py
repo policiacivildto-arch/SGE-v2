@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     CautelaViewSet,
+    DashboardEstoqueView,
     MovimentoViewSet,
     ServicoViewSet,
     confirmar_email_dev_view,
@@ -19,4 +20,5 @@ router.register("cautelas", CautelaViewSet, basename="cautela")
 urlpatterns = [
     path("cautelas/confirmar-email/", confirmar_email_view, name="confirmar-email"),
     path("cautelas/confirmar-email-dev/", confirmar_email_dev_view, name="confirmar-email-dev"),
+    path("dashboard/estoque/", DashboardEstoqueView.as_view(), name="dashboard-estoque"),
 ] + router.urls

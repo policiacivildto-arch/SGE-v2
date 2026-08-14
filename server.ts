@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import http from "http";
 import { createServer as createViteServer } from "vite";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { serverDb } from "./serverDb.js";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
@@ -2435,6 +2436,19 @@ async function startServer() {
     res.status(204).send();
   });
 
+
+  // --- Proxy reverso para o backend Django ---
+  // Qualquer rota /api/* que não tenha sido tratada pelos handlers acima
+  // (ainda não migrados deste arquivo) cai aqui e é encaminhada para o
+  // backend_django. Conforme cada recurso é migrado, o handler
+  // correspondente é removido deste arquivo e passa a cair neste fallback.
+  app.use(
+    "/api",
+    createProxyMiddleware({
+      target: process.env.DJANGO_BACKEND_URL || "http://backend_django:8000",
+      changeOrigin: true,
+    })
+  );
 
   // --- Vite Middleware and Static File Serving ---
 

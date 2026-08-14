@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,7 +7,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Usuario
-from .serializers import LoginSerializer, UsuarioMeSerializer
+from .permissions import IsAdminRole
+from .serializers import LoginSerializer, UsuarioMeSerializer, UsuarioSerializer
 
 
 class LoginView(APIView):
@@ -60,3 +61,14 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UsuarioMeSerializer(request.user).data)
+
+
+class UsuarioViewSet(viewsets.ModelViewSet):
+    """CRUD de usuários — restrito a `role == Role.ADMIN` (ver
+    `usuarios/permissions.py:IsAdminRole`). Não usa `SGARolePermission`
+    porque gestão de usuários não é uma das seções (cadastros/estoque/
+    servicos) daquela regra."""
+
+    queryset = Usuario.objects.all().order_by("nome")
+    serializer_class = UsuarioSerializer
+    permission_classes = [IsAdminRole]

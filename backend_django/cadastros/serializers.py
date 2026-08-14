@@ -26,13 +26,20 @@ class LotacaoSerializer(serializers.ModelSerializer):
     departamento_id = serializers.PrimaryKeyRelatedField(
         source="departamento", queryset=Departamento.objects.all()
     )
+    # Compatibilidade: db.json guardava `depto` como texto solto; a tela
+    # que só exibe (não edita) o departamento da lotação continua lendo
+    # este campo somente-leitura em vez do `departamento_id` normalizado.
+    depto = serializers.SerializerMethodField()
 
     class Meta:
         model = Lotacao
         fields = [
-            "id", "departamento_id", "nome", "cidade", "resp", "area_atuacao",
+            "id", "departamento_id", "depto", "nome", "cidade", "resp", "area_atuacao",
             "ais", "tel", "endereco", "seccional", "criado_em", "atualizado_em",
         ]
+
+    def get_depto(self, obj):
+        return obj.departamento.nome if obj.departamento_id else ""
 
 
 class PolicialSerializer(serializers.ModelSerializer):
@@ -44,13 +51,25 @@ class PolicialSerializer(serializers.ModelSerializer):
         source="lotacao", queryset=Lotacao.objects.all(),
         allow_null=True, required=False,
     )
+    # Compatibilidade: db.json guardava `depto`/`lotacao` como texto
+    # solto no Policial; telas que só exibem (não editam) continuam
+    # lendo estes campos somente-leitura em vez dos `*_id` normalizados.
+    depto = serializers.SerializerMethodField()
+    lotacao = serializers.SerializerMethodField()
 
     class Meta:
         model = Policial
         fields = [
             "id", "matricula", "cpf", "nome", "cargo", "departamento_id",
-            "lotacao_id", "tel", "email", "obs", "criado_em", "atualizado_em",
+            "lotacao_id", "depto", "lotacao", "tel", "email", "obs",
+            "criado_em", "atualizado_em",
         ]
+
+    def get_depto(self, obj):
+        return obj.departamento.nome if obj.departamento_id else ""
+
+    def get_lotacao(self, obj):
+        return obj.lotacao.nome if obj.lotacao_id else ""
 
 
 class FornecedorSerializer(serializers.ModelSerializer):

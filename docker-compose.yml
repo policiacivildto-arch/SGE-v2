@@ -21,11 +21,11 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  backend_django:
     build:
-      context: ./backend_python
+      context: ./backend_django
       dockerfile: Dockerfile
-    container_name: sga_python_backend
+    container_name: sga_django_backend
     restart: always
     secrets:
       - source: db_user
@@ -34,14 +34,17 @@ services:
         target: db_password_SGA_BACK
       - source: db_name
         target: db_name_SGA_BACK
+      - source: django_secret_key
+        target: django_secret_key_SGA_BACK
     environment:
-      HOST: "0.0.0.0"
-      PORT: "8000"
       DEBUG: "True"
+      ALLOWED_HOSTS: "*"
       DB_HOST: "db"
       DB_PORT: "5432"
-    ports:
-      - "8000:8000"
+    volumes:
+      # Só para o management command migrar_db_json (import único e manual
+      # dos dados legados) — não usado no boot normal do container.
+      - ./db.json:/app/db.json:ro
     depends_on:
       db:
         condition: service_healthy
@@ -62,10 +65,11 @@ services:
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_SECURE: "${SMTP_SECURE:-false}"
+      DJANGO_BACKEND_URL: "http://backend_django:8000"
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - backend_django
 
 volumes:
   postgres_data:
@@ -79,4 +83,6 @@ secrets:
     file: ./secrets/db_name.txt
   smtp_password:
     file: ./secrets/smtp_password.txt
+  django_secret_key:
+    file: ./secrets/django_secret_key.txt
 

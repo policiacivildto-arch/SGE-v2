@@ -8,12 +8,16 @@ class CompraSerializer(serializers.ModelSerializer):
     fornecedor_id = serializers.PrimaryKeyRelatedField(
         source="fornecedor", queryset=Fornecedor.objects.all()
     )
+    # Compatibilidade: db.json guardava `fornecedor_nome` denormalizado
+    # ao lado de `fornecedor_id`; telas que só exibem continuam lendo
+    # este campo somente-leitura.
+    fornecedor_nome = serializers.SerializerMethodField()
     criado_por_id = serializers.PrimaryKeyRelatedField(source="criado_por", read_only=True)
 
     class Meta:
         model = Compra
         fields = [
-            "id", "fornecedor_id", "categoria", "tipo", "calibre",
+            "id", "fornecedor_id", "fornecedor_nome", "categoria", "tipo", "calibre",
             "comprimento_cano", "quantidade_carregadores", "capacidade",
             "marca", "modelo", "nivel", "tamanho", "sexo", "cargo",
             "numero_nota_fiscal", "numero_empenho", "numero_tombo", "serie",
@@ -21,6 +25,9 @@ class CompraSerializer(serializers.ModelSerializer):
             "dt_aq", "valor_compra", "dt_val", "obs", "criado_por_id",
             "criado_em", "atualizado_em",
         ]
+
+    def get_fornecedor_nome(self, obj):
+        return obj.fornecedor.nome if obj.fornecedor_id else ""
 
 
 class ItemSerializer(serializers.ModelSerializer):
