@@ -49,6 +49,27 @@ class ServicoViewSet(viewsets.ModelViewSet):
     permission_classes = [SGARolePermission]
     section = "servicos"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        servico_status = self.request.query_params.get("status")
+        tipo = self.request.query_params.get("tipo")
+        armeiro = self.request.query_params.get("armeiro")
+        if servico_status:
+            qs = qs.filter(status=servico_status)
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+        if armeiro:
+            qs = qs.filter(armeiro=armeiro)
+        if search:
+            qs = qs.filter(
+                Q(codigo__icontains=search) | Q(policial_nome__icontains=search)
+                | Q(matricula__icontains=search) | Q(departamento__nome__icontains=search)
+                | Q(lotacao__nome__icontains=search) | Q(tipo__icontains=search)
+                | Q(serie__icontains=search)
+            )
+        return qs
+
     def perform_create(self, serializer):
         policial = serializer.validated_data.get("policial")
         extra = {}

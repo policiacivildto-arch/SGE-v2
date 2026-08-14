@@ -43,6 +43,21 @@ class Servico(BaseModel):
     )
     tipo = models.CharField(max_length=100, blank=True)
     data_rec = models.DateField(null=True, blank=True)
+    # Adicionados na Fase 5 (cutover do frontend): NovoServico.jsx exige
+    # esses campos no formulário (ordem de serviço/manutenção de arma) —
+    # o model original não os modelava e eles seriam descartados
+    # silenciosamente no create.
+    data_dev = models.DateField(null=True, blank=True)
+    motivo = models.CharField(max_length=255, blank=True)
+    categoria = models.CharField(max_length=100, blank=True)
+    marca = models.CharField(max_length=100, blank=True)
+    modelo = models.CharField(max_length=100, blank=True)
+    calibre = models.CharField(max_length=50, blank=True)
+    descricao = models.TextField(blank=True)
+    # Preenchidos na devolução/conclusão do serviço (RelatoriosServicosView,
+    # main.jsx) — pecas_substituidas é {nome_da_peça: quantidade}.
+    trabalho_realizado = models.TextField(blank=True)
+    pecas_substituidas = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=50, blank=True)
     serie = models.CharField(max_length=100, blank=True)
     obs = models.TextField(blank=True)

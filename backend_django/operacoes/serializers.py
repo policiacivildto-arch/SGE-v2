@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from cadastros.models import Delegacia, Departamento, Lotacao, Patrimonio, Policial
+from cadastros.services import resolve_lotacao, resolve_or_create_departamento
 from estoque.models import Arma, Item
 from usuarios.models import Usuario
 
@@ -29,8 +30,10 @@ class ServicoSerializer(serializers.ModelSerializer):
         fields = [
             "id", "codigo", "policial_id", "matricula", "policial_nome",
             "departamento_id", "lotacao_id", "depto", "lotacao_nome", "tipo",
-            "data_rec", "status", "serie", "obs", "armeiro", "criado_por_id",
-            "criado_em", "atualizado_em",
+            "data_rec", "data_dev", "motivo", "categoria", "marca", "modelo",
+            "calibre", "descricao", "trabalho_realizado", "pecas_substituidas",
+            "status", "serie", "obs", "armeiro",
+            "criado_por_id", "criado_em", "atualizado_em",
         ]
         read_only_fields = ["codigo"]
 
@@ -39,6 +42,19 @@ class ServicoSerializer(serializers.ModelSerializer):
 
     def get_lotacao_nome(self, obj):
         return obj.lotacao.nome if obj.lotacao_id else ""
+
+    def validate(self, attrs):
+        # NovoServico.jsx (Fase 5) ainda envia `depto`/`lotacao` como
+        # texto livre no create, não os ids normalizados.
+        if "departamento" not in attrs:
+            depto_nome = self.initial_data.get("depto")
+            if depto_nome:
+                attrs["departamento"] = resolve_or_create_departamento(depto_nome)
+        if "lotacao" not in attrs:
+            lotacao_nome = self.initial_data.get("lotacao")
+            if lotacao_nome:
+                attrs["lotacao"] = resolve_lotacao(lotacao_nome)
+        return attrs
 
 
 class MovimentoSerializer(serializers.ModelSerializer):

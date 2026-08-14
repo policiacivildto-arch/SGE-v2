@@ -425,10 +425,8 @@ async function startServer() {
     }
   });
 
-  // 2. Extra Service Endpoints
-  app.get("/api/servicos/next-code", (req, res) => {
-    res.json({ codigo: serverDb.getNextCode() });
-  });
+  // 2. Extra Service Endpoints — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
   // 3. Extra Cautela Endpoints
   app.get("/api/cautelas/next-number", (req, res) => {
@@ -593,65 +591,8 @@ async function startServer() {
   });
 
   // 16. Servicos
-  app.get("/api/servicos", (req, res) => {
-    const { search, ordering, status, tipo, armeiro } = req.query;
-    const filters: any = {};
-    if (status) filters.status = status;
-    if (tipo) filters.tipo = tipo;
-    if (armeiro) filters.armeiro = armeiro;
-
-    const list = serverDb.queryCollection<any>(
-      "servicos",
-      search as string,
-      ["codigo", "policial_nome", "matricula", "depto", "lotacao", "tipo", "serie"],
-      (ordering as string) || "-criado_em",
-      filters
-    ).map(s => {
-      const pol = serverDb.getById<any>("policiais", s.policial_id);
-      return {
-        ...s,
-        policial_nome_display: pol ? pol.nome : s.policial_nome
-      };
-    });
-    respondList(res, list);
-  });
-
-  app.post("/api/servicos", (req, res) => {
-    const { policial_id } = req.body;
-    let extraData: any = {};
-    if (policial_id) {
-      const pol = serverDb.getById<any>("policiais", policial_id);
-      if (pol) {
-        extraData = {
-          policial_id: pol.id,
-          matricula: req.body.matricula || pol.matricula,
-          policial_nome: req.body.policial_nome || pol.nome,
-          depto: req.body.depto || pol.depto,
-          lotacao: req.body.lotacao || pol.lotacao
-        };
-      }
-    }
-    
-    const codigo = serverDb.getNextCode();
-    const newItem = serverDb.create("servicos", {
-      ...req.body,
-      ...extraData,
-      codigo
-    });
-    res.status(201).json(newItem);
-  });
-
-  app.patch("/api/servicos/:id", (req, res) => {
-    const updated = serverDb.update("servicos", req.params.id, req.body);
-    if (!updated) return res.status(404).json({ detail: "Nao encontrado." });
-    res.json(updated);
-  });
-
-  app.delete("/api/servicos/:id", (req, res) => {
-    const deleted = serverDb.remove("servicos", req.params.id);
-    if (!deleted) return res.status(404).json({ detail: "Nao encontrado." });
-    res.status(204).send();
-  });
+  // Serviços — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
   // 17. Cautelas
   app.get("/api/cautelas/relatorio-xlsx", (req, res) => {
@@ -1429,106 +1370,8 @@ async function startServer() {
     }
   });
 
-  app.get("/api/servicos/:id/documento-pdf", (req, res) => {
-    try {
-      const { id } = req.params;
-      const servico = serverDb.getById<any>("servicos", id);
-      if (!servico) {
-        return res.status(404).json({ detail: "Ordem de serviço não encontrada." });
-      }
-
-      const doc = new PDFDocument({ margin: 50, size: "A4" });
-      
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="servico_${servico.codigo}.pdf"`);
-      
-      doc.pipe(res);
-
-      drawBrasaoPdfHeader(doc);
-
-      doc.font("Helvetica-Bold").fontSize(13).text("POLÍCIA CIVIL DO ESTADO DO CEARÁ", { align: "center" });
-      doc.fontSize(9).font("Helvetica").text("GOVERNO DO ESTADO • SECRETARIA DA SEGURANÇA PÚBLICA E DEFESA SOCIAL", { align: "center" });
-      doc.font("Helvetica-Bold").fontSize(10).text("DEPARTAMENTO TÉCNICO OPERACIONAL", { align: "center" });
-      doc.text("SEÇÃO DE AQUISIÇÃO, LOGÍSTICA E TIRO - DTO", { align: "center" });
-      doc.moveDown(1.2);
-      
-      doc.fontSize(13).text(`ORDEM DE SERVIÇO Nº ${servico.codigo}`, { align: "center" });
-      doc.moveDown(1.2);
-
-      doc.font("Helvetica-Bold").fontSize(10).text("1. DADOS DA ORDEM DE SERVIÇO:");
-      doc.font("Helvetica").fontSize(10);
-      doc.text(`Data de Recebimento: ${servico.data_rec || "—"}`);
-      doc.text(`Data de Devolução: ${servico.data_dev || "Aberto / Em manutenção"}`);
-      doc.text(`Tipo de Serviço: ${servico.tipo || "—"}`);
-      doc.text(`Armeiro Responsável: ${servico.armeiro || "—"}`);
-      doc.text(`Status do Serviço: ${servico.status || "—"}`);
-      doc.text(`Causa / Motivo: ${servico.motivo || "—"}`);
-      doc.moveDown();
-
-      doc.font("Helvetica-Bold").text("2. DADOS DO POLICIAL SOLICITANTE:");
-      doc.font("Helvetica");
-      doc.text(`Policial: ${servico.policial_nome || "—"}`);
-      doc.text(`Matrícula: ${servico.matricula || "—"}`);
-      doc.text(`Departamento: ${servico.depto || "—"}`);
-      doc.text(`Lotação / Unidade: ${servico.lotacao || "—"}`);
-      doc.moveDown();
-
-      doc.font("Helvetica-Bold").text("3. ESPECIFICAÇÃO DO ITEM / ARMAMENTO:");
-      doc.font("Helvetica");
-      doc.text(`Categoria: ${servico.categoria || "Armas"}`);
-      doc.text(`Marca / Modelo: ${servico.marca || "Pistola"} ${servico.modelo || "—"}`);
-      doc.text(`Calibre: ${servico.calibre || "—"}`);
-      doc.text(`Número de Série: ${servico.serie || "—"}`);
-      doc.moveDown();
-
-      doc.font("Helvetica-Bold").text("4. DETALHAMENTO DO SERVIÇO:");
-      doc.font("Helvetica");
-      doc.text(`Descrição Inicial do Defeito / Solicitação:\n${servico.descricao || "Sem observações adicionais"}`);
-      doc.moveDown(0.5);
-      doc.font("Helvetica-Bold").text(`Trabalho Realizado / Parecer Técnico:\n`);
-      doc.font("Helvetica").text(`${servico.trabalho_realizado || "Pendente / Em andamento"}`);
-      
-      let hasPecas = false;
-      if (servico.pecas_substituidas) {
-        hasPecas = Object.keys(servico.pecas_substituidas).some(k => Number(servico.pecas_substituidas[k]) > 0);
-      }
-      if (hasPecas) {
-        doc.moveDown();
-        doc.font("Helvetica-Bold").text("5. PEÇAS SUBSTITUÍDAS:");
-        doc.font("Helvetica");
-        Object.entries(servico.pecas_substituidas).forEach(([peca, qtd]) => {
-          const qty = Number(qtd || 0);
-          if (qty > 0) {
-            doc.text(`• ${peca}: ${qty} un`);
-          }
-        });
-      }
-      
-      doc.moveDown(3);
-
-      const startY = doc.y;
-      doc.fontSize(10);
-      
-      doc.text("__________________________________________", 50, startY, { width: 220, align: "center" });
-      doc.text(servico.policial_nome || "Policial Solicitante", 50, startY + 15, { width: 220, align: "center" });
-      doc.text(servico.matricula ? `Matrícula: ${servico.matricula}` : "Assinatura do Policial", 50, startY + 30, { width: 220, align: "center" });
-
-      doc.text("__________________________________________", 320, startY, { width: 220, align: "center" });
-      doc.text(servico.armeiro || "Armeiro de Plantão", 320, startY + 15, { width: 220, align: "center" });
-      doc.text("Assinatura do Armeiro", 320, startY + 30, { width: 220, align: "center" });
-
-      doc.fontSize(8).font("Helvetica").text(
-        "Av. Professor Guilhon, s/n, Aeroporto, 4º Andar, Fortaleza/CE – CEP 60415-330 | Tel. 3101-7300.",
-        50,
-        780,
-        { align: "center", width: 495 }
-      );
-
-      doc.end();
-    } catch (e: any) {
-      res.status(500).json({ detail: e.message || "Erro ao gerar PDF do serviço." });
-    }
-  });
+  // Documento PDF de serviço — cortado para o backend Django na Fase 5
+  // (PRD_BACKEND_DJANGO.md, seção 12.1). Cai no proxy /api.
 
   // 18. Movimentos
   app.get("/api/movimentos", (req, res) => {

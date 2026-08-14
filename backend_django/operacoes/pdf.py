@@ -230,16 +230,7 @@ def gerar_pdf_cautela(cautela) -> bytes:
 
 
 def gerar_pdf_servico(servico) -> bytes:
-    """Réplica de GET /api/servicos/:id/documento-pdf (server.ts:2284).
-
-    server.ts lia campos (`data_dev`, `motivo`, `categoria`, `marca`,
-    `modelo`, `calibre`, `descricao`, `trabalho_realizado`,
-    `pecas_substituidas`) que não existem no modelo Django `Servico`
-    (que só tem codigo/policial/matricula/policial_nome/departamento/
-    lotacao/tipo/data_rec/status/serie/obs/armeiro). Esses campos saem
-    como "—"/omitidos abaixo — divergência de schema pré-existente à
-    Fase 1, não algo resolvível só nesta ação.
-    """
+    """Réplica de GET /api/servicos/:id/documento-pdf (server.ts:2284)."""
     from io import BytesIO
 
     buffer = BytesIO()
@@ -267,8 +258,9 @@ def gerar_pdf_servico(servico) -> bytes:
     w.text("1. DADOS DA ORDEM DE SERVIÇO:")
     w.set_font("Helvetica", 10)
     w.text(f"Data de Recebimento: {servico.data_rec or '—'}")
-    w.text("Data de Devolução: Aberto / Em manutenção")
+    w.text(f"Data de Devolução: {servico.data_dev or 'Aberto / Em manutenção'}")
     w.text(f"Tipo de Serviço: {servico.tipo or '—'}")
+    w.text(f"Motivo: {servico.motivo or '—'}")
     w.text(f"Armeiro Responsável: {servico.armeiro or '—'}")
     w.text(f"Status do Serviço: {servico.status or '—'}")
     w.move_down()
@@ -285,12 +277,20 @@ def gerar_pdf_servico(servico) -> bytes:
     w.set_font("Helvetica-Bold", 10)
     w.text("3. ESPECIFICAÇÃO DO ITEM / ARMAMENTO:")
     w.set_font("Helvetica", 10)
+    w.text(f"Categoria: {servico.categoria or '—'}")
+    w.text(f"Marca / Modelo: {servico.marca or '—'} / {servico.modelo or '—'}")
+    w.text(f"Calibre: {servico.calibre or '—'}")
     w.text(f"Número de Série: {servico.serie or '—'}")
+    if servico.descricao:
+        w.text(f"Descrição: {servico.descricao}")
     w.move_down()
 
     w.set_font("Helvetica-Bold", 10)
     w.text("4. DETALHAMENTO DO SERVIÇO:")
     w.set_font("Helvetica", 10)
+    w.text(f"Trabalho Realizado: {servico.trabalho_realizado or 'Ainda não concluído'}")
+    pecas = [f"{nome} ({qtd})" for nome, qtd in (servico.pecas_substituidas or {}).items() if qtd]
+    w.text(f"Peças Substituídas: {', '.join(pecas) if pecas else 'Nenhuma'}")
     w.text(f"Observações: {servico.obs or 'Sem observações adicionais'}")
     w.move_down(3)
 
