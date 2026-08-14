@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiService, setUnauthorizedHandler } from '../services/api';
 
 // Email domain constraint
 export const REQUIRED_DOMAIN = '@pc.ce.gov.br';
@@ -12,192 +13,84 @@ export const validateEmail = (email) => {
   return null;
 };
 
-export const validatePassword = (password) => {
-  if (!password) return 'Senha é obrigatória.';
-  if (password.length < 8) return 'A senha deve ter no mínimo 8 caracteres.';
-  if (!/[A-Z]/.test(password)) return 'A senha deve conter pelo menos uma letra maiúscula (A-Z).';
-  if (!/[0-9]/.test(password)) return 'A senha deve conter pelo menos um número (0-9).';
-  if (!/[^A-Za-z0-9]/.test(password)) return 'A senha deve conter pelo menos um caractere especial (!@#$%...).';
-  return null;
+const ROLE_META = {
+  admin: { roleLabel: 'Administrador', badgeColor: '#7c3aed' },
+  armeiro: { roleLabel: 'Armeiro', badgeColor: '#2563eb' },
+  administrativo: { roleLabel: 'Administrativo', badgeColor: '#059669' },
 };
 
-export const SEED_USERS = [
-  {
-    id: 'usr-admin',
-    nome: 'Administrador Geral',
-    email: 'admin@pc.ce.gov.br',
-    password: 'Admin@1234',
-    role: 'admin',
-    roleLabel: 'Administrador',
-    badgeColor: '#7c3aed',
-  },
-  {
-    id: 'usr-armeiro',
-    nome: 'Armeiro Plantonista',
-    email: 'armeiro@pc.ce.gov.br',
-    password: 'Armeiro@1234',
-    role: 'armeiro',
-    roleLabel: 'Armeiro',
-    badgeColor: '#2563eb',
-  },
-  {
-    id: 'usr-admin-serv',
-    nome: 'Agente Administrativo',
-    email: 'admin.serv@pc.ce.gov.br',
-    password: 'Admin@1234',
-    role: 'administrativo',
-    roleLabel: 'Administrativo',
-    badgeColor: '#059669',
-  }
-];
+function withRoleMeta(user) {
+  if (!user) return null;
+  const meta = ROLE_META[user.role] || ROLE_META.administrativo;
+  return { ...user, ...meta };
+}
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => {
-    try {
-      const stored = localStorage.getItem('pc_ce_registered_users');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge seed users with stored users to ensure seed users are always present
-          const merged = [...SEED_USERS];
-          parsed.forEach(u => {
-            if (!merged.some(su => su.email.toLowerCase() === u.email.toLowerCase())) {
-              merged.push(u);
-            }
-          });
-          return merged;
-        }
-      }
-    } catch (e) {
-      console.error('Error loading stored users:', e);
-    }
-    return SEED_USERS;
-  });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    // Always start unauthenticated (null) on launch so user lands on login page
-    try {
-      localStorage.removeItem('pc_ce_current_user');
-    } catch (e) {
-      console.error('Error clearing user session on init:', e);
-    }
-    return null;
-  });
+  const clearSession = useCallback(() => {
+    apiService.clearTokens();
+    setCurrentUser(null);
+  }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('pc_ce_registered_users', JSON.stringify(users));
-    } catch (e) {
-      console.error('Error saving users to localStorage:', e);
-    }
-  }, [users]);
+    setUnauthorizedHandler(clearSession);
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
 
+  // Ao carregar a página, se já houver tokens salvos, valida a sessão
+  // buscando o usuário atual em vez de confiar em algo salvo localmente.
   useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem('pc_ce_current_user', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('pc_ce_current_user');
+    (async () => {
+      if (!apiService.hasTokens()) {
+        setInitializing(false);
+        return;
       }
-    } catch (e) {
-      console.error('Error saving current user:', e);
-    }
-  }, [currentUser]);
+      try {
+        const user = await apiService.get('auth/me/');
+        setCurrentUser(withRoleMeta(user));
+      } catch (e) {
+        apiService.clearTokens();
+      } finally {
+        setInitializing(false);
+      }
+    })();
+  }, []);
 
-  const login = (email, password) => {
+  const login = async (email, password) => {
     const emailErr = validateEmail(email);
     if (emailErr) {
       throw new Error(emailErr);
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-    if (!user) {
-      throw new Error('Usuário não encontrado com este e-mail.');
+    let data;
+    try {
+      data = await apiService.create('auth/login/', { email: cleanEmail, password });
+    } catch (e) {
+      throw new Error(e.message || 'E-mail ou senha inválidos.');
     }
 
-    if (user.password !== password) {
-      throw new Error('Senha incorreta.');
-    }
-
+    apiService.setTokens(data.access, data.refresh);
+    const user = withRoleMeta(data.user);
     setCurrentUser(user);
     return user;
   };
 
-  const register = (nome, email, password, forcedRole = null) => {
-    const emailErr = validateEmail(email);
-    if (emailErr) throw new Error(emailErr);
-
-    const passErr = validatePassword(password);
-    if (passErr) throw new Error(passErr);
-
-    const cleanEmail = email.trim().toLowerCase();
-    if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-      throw new Error('Este e-mail já está cadastrado no sistema.');
-    }
-
-    // Role is determined by administrator or defaults to basic 'administrativo'
-    const role = forcedRole || 'administrativo';
-    let roleLabel = 'Administrativo';
-    let badgeColor = '#059669';
-    if (role === 'admin') {
-      roleLabel = 'Administrador';
-      badgeColor = '#7c3aed';
-    } else if (role === 'armeiro') {
-      roleLabel = 'Armeiro';
-      badgeColor = '#2563eb';
-    }
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      nome: nome.trim(),
-      email: cleanEmail,
-      password,
-      role,
-      roleLabel,
-      badgeColor
-    };
-
-    setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
-    return newUser;
-  };
-
-  const updateUserRole = (userId, newRole) => {
-    let roleLabel = 'Administrativo';
-    let badgeColor = '#059669';
-    if (newRole === 'admin') {
-      roleLabel = 'Administrador';
-      badgeColor = '#7c3aed';
-    } else if (newRole === 'armeiro') {
-      roleLabel = 'Armeiro';
-      badgeColor = '#2563eb';
-    }
-
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        return { ...u, role: newRole, roleLabel, badgeColor };
+  const logout = async () => {
+    const refresh = apiService.getRefreshToken();
+    try {
+      if (refresh) {
+        await apiService.create('auth/logout/', { refresh });
       }
-      return u;
-    }));
-
-    if (currentUser && currentUser.id === userId) {
-      setCurrentUser(prev => ({ ...prev, role: newRole, roleLabel, badgeColor }));
+    } catch (e) {
+      // Mesmo se o backend não conseguir invalidar o refresh token
+      // (ex.: já expirado), a sessão local é encerrada de qualquer forma.
     }
-  };
-
-  const switchUser = (userIdOrRole) => {
-    const user = users.find(u => u.id === userIdOrRole || u.role === userIdOrRole);
-    if (user) {
-      setCurrentUser(user);
-    }
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
+    clearSession();
   };
 
   // Check if current user can perform an action
@@ -224,9 +117,9 @@ export function AuthProvider({ children }) {
     }
 
     // 3. Armeiro permissions:
-    // - Access ONLY 'servicos' and 'estoque' (cannot access 'cadastros')
-    // - Can view and add in 'servicos' and 'estoque'
-    // - Can ONLY edit records added in 'servicos'
+    // - Access ONLY 'servicos' e 'estoque' (não acessa 'cadastros')
+    // - Pode ver e adicionar em 'servicos' e 'estoque'
+    // - Só pode editar registros criados em 'servicos'
     if (currentUser.role === 'armeiro') {
       if (section === 'cadastros') return false;
 
@@ -236,16 +129,15 @@ export function AuthProvider({ children }) {
 
       if (action === 'edit') {
         if (section !== 'servicos') return false;
-        // In servicos section, armeiro can edit records created by them (or new records)
-        if (!createdByEmail) return true; // allow editing if creator not set or current user
+        if (!createdByEmail) return true;
         return createdByEmail.toLowerCase() === currentUser.email.toLowerCase();
       }
     }
 
     // 4. Administrativo permissions:
-    // - Access EVERYTHING (servicos, estoque, cadastros)
-    // - Can view and add in ALL sections
-    // - Can ONLY edit records added in 'estoque'
+    // - Acessa TUDO (servicos, estoque, cadastros)
+    // - Pode ver e adicionar em TODAS as seções
+    // - Só pode editar registros criados em 'estoque'
     if (currentUser.role === 'administrativo') {
       if (action === 'view' || action === 'add') {
         return true;
@@ -253,7 +145,6 @@ export function AuthProvider({ children }) {
 
       if (action === 'edit') {
         if (section !== 'estoque') return false;
-        // In estoque section, administrativo can edit records created by them
         if (!createdByEmail) return true;
         return createdByEmail.toLowerCase() === currentUser.email.toLowerCase();
       }
@@ -264,11 +155,8 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
-    users,
+    initializing,
     login,
-    register,
-    updateUserRole,
-    switchUser,
     logout,
     can,
   };

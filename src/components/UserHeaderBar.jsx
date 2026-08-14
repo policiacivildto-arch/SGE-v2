@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { useAuth, SEED_USERS } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import LoginModal from './LoginModal';
-import UserManagementModal from './UserManagementModal';
 
 export default function UserHeaderBar() {
-  const { currentUser, logout, switchUser, users } = useAuth();
+  const { currentUser, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showUserMgmtModal, setShowUserMgmtModal] = useState(false);
 
   if (!currentUser) {
     return (
@@ -134,73 +132,8 @@ export default function UserHeaderBar() {
             </div>
           </div>
 
-          {/* Quick Role Switcher and Logout Controls */}
+          {/* Logout Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1e293b', padding: '6px 10px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>Perfil de Teste:</span>
-              <select
-                value={currentUser.id}
-                onChange={(e) => switchUser(e.target.value)}
-                style={{
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #475569',
-                  backgroundColor: '#0f172a',
-                  color: '#f8fafc',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-                title="Trocar de usuário para testar as regras do nível de acesso"
-              >
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.role === 'admin' ? '👑' : u.role === 'armeiro' ? '🔧' : '📋'} {u.roleLabel} - {u.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {currentUser?.role === 'admin' && (
-              <button
-                onClick={() => setShowUserMgmtModal(true)}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  backgroundColor: '#6d28d9',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                title="Gerenciar os Níveis de Acesso de todos os usuários (Exclusivo Administrador)"
-              >
-                <span>👑</span> Gestão de Perfis
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowLoginModal(true)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '11px',
-                fontWeight: '700',
-                backgroundColor: '#334155',
-                color: '#f1f5f9',
-                border: '1px solid #475569',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-              title="Abrir tela de login ou cadastrar nova conta"
-            >
-              👤 Trocar / Cadastrar
-            </button>
-
             <button
               onClick={logout}
               style={{
@@ -223,10 +156,6 @@ export default function UserHeaderBar() {
 
       {showLoginModal && (
         <LoginModal isOpen={true} onClose={() => setShowLoginModal(false)} />
-      )}
-
-      {showUserMgmtModal && (
-        <UserManagementModal isOpen={true} onClose={() => setShowUserMgmtModal(false)} />
       )}
     </>
   );

@@ -36,4 +36,9 @@ fi
 
 python manage.py migrate --noinput
 
+# Garante os 3 usuários de teste (admin/armeiro/administrativo) sempre
+# presentes com senha hasheada — idempotente (get_or_create + set_password),
+# seguro rodar em todo boot. Dev/demo only, ver seed_usuarios.py.
+python manage.py seed_usuarios
+
 exec "$@"

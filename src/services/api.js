@@ -1,7 +1,94 @@
+const ACCESS_TOKEN_KEY = 'sga_access_token';
+const REFRESH_TOKEN_KEY = 'sga_refresh_token';
+
+let unauthorizedHandler = null;
+let refreshPromise = null;
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler;
+}
+
+function getAccessToken() {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function setTokens(access, refresh) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+}
+
+function clearTokens() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+function hasTokens() {
+  return Boolean(getAccessToken());
+}
+
+async function refreshAccessToken() {
+  const refresh = getRefreshToken();
+  if (!refresh) return false;
+
+  if (!refreshPromise) {
+    refreshPromise = fetch('/api/auth/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh }),
+    })
+      .then(async (res) => {
+        if (!res.ok) return false;
+        const data = await res.json();
+        setTokens(data.access, refresh);
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+// Faz o fetch com o Authorization header; em 401, tenta renovar o
+// access token uma vez e repete a chamada original antes de desistir.
+async function authFetch(url, options = {}, { isRetry = false } = {}) {
+  const token = getAccessToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401 && !isRetry && getRefreshToken()) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return authFetch(url, options, { isRetry: true });
+    }
+  }
+
+  if (res.status === 401) {
+    clearTokens();
+    if (unauthorizedHandler) unauthorizedHandler();
+  }
+
+  return res;
+}
+
 export const apiService = {
+  hasTokens,
+  setTokens,
+  clearTokens,
+  getRefreshToken,
+
   async getList(resource, params) {
     const query = params ? `?${params.toString()}` : '';
-    const res = await fetch(`/api/${resource}${query}`);
+    const res = await authFetch(`/api/${resource}${query}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao buscar lista de ${resource}`);
@@ -10,7 +97,7 @@ export const apiService = {
   },
 
   async get(path) {
-    const res = await fetch(`/api/${path}`);
+    const res = await authFetch(`/api/${path}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao buscar ${path}`);
@@ -19,7 +106,7 @@ export const apiService = {
   },
 
   async create(resource, payload) {
-    const res = await fetch(`/api/${resource}`, {
+    const res = await authFetch(`/api/${resource}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -34,7 +121,7 @@ export const apiService = {
   async update(resource, id, payload) {
     // If id is provided as separate argument, use resource/id, else resource represents the path
     const urlPath = id ? `${resource}/${id}` : resource;
-    const res = await fetch(`/api/${urlPath}`, {
+    const res = await authFetch(`/api/${urlPath}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -48,7 +135,7 @@ export const apiService = {
 
   async remove(resource, id) {
     const urlPath = id ? `${resource}/${id}` : resource;
-    const res = await fetch(`/api/${urlPath}`, {
+    const res = await authFetch(`/api/${urlPath}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
@@ -59,7 +146,7 @@ export const apiService = {
   },
 
   async patch(path, payload) {
-    const res = await fetch(`/api/${path}`, {
+    const res = await authFetch(`/api/${path}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -73,7 +160,7 @@ export const apiService = {
 
   async download(path, filename, params) {
     const query = params ? `?${params.toString()}` : '';
-    const res = await fetch(`/api/${path}${query}`);
+    const res = await authFetch(`/api/${path}${query}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao baixar arquivo de ${path}`);
