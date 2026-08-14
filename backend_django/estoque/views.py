@@ -150,18 +150,20 @@ class ItemViewSet(viewsets.ModelViewSet):
     def bens(self, request, pk=None):
         """Réplica de GET /api/itens/:id/bens em server.ts:1279.
 
-        Nota: ao contrário de db.json (onde `bens.compra_id` referenciava
-        a compra de origem), o modelo Django `BemIndividual` não guarda
-        essa relação — não há como popular `compra`/`compra_excluida`
-        aqui. Mantidos como `None`/`False` para preservar o formato de
-        resposta esperado pelo frontend.
+        Desde a Fase 5 (cutover do frontend), `Item.compra` é uma FK
+        real (`on_delete=SET_NULL`) — a compra de origem do item, se
+        houver, é sempre resolvível daqui; `compra_excluida` fica
+        estruturalmente impossível (SET_NULL zera a FK ao invés de
+        deixar um id pendurado), mas o campo é mantido em `False` para
+        não quebrar o formato de resposta que o frontend já espera.
         """
         item = self.get_object()
         bens_qs = BemIndividual.objects.filter(item=item).order_by("patrimonio")
+        compra_data = CompraSerializer(item.compra).data if item.compra_id else None
         data = []
         for b in bens_qs:
             payload = BemIndividualSerializer(b).data
-            payload["compra"] = None
+            payload["compra"] = compra_data
             payload["compra_excluida"] = False
             data.append(payload)
         return Response({"count": len(data), "next": None, "previous": None, "results": data})
@@ -170,22 +172,20 @@ class ItemViewSet(viewsets.ModelViewSet):
     def compras(self, request, pk=None):
         """Réplica de GET /api/itens/:id/compras em server.ts:1322.
 
-        server.ts casava compras pelo `item.compra_id` direto ou pelos
-        `compra_id` dos `bens` do item — nenhuma dessas relações existe
-        no schema Django atual (Item/BemIndividual não guardam
-        `compra`). Replicado aqui só o fallback por igualdade de
-        categoria+descrição (texto, case-insensitive).
-        """
+        Usa a FK real `Item.compra` (Fase 5). Fallback por igualdade de
+        categoria+descrição preservado só para itens migrados antes da
+        FK existir (ou sem `compra` associada)."""
         item = self.get_object()
-        norm_cat = (item.categoria or "").strip().lower()
-        norm_desc = (item.descricao or "").strip().lower()
-
-        compras_qs = Compra.objects.all()
-        matched = [
-            c for c in compras_qs
-            if (c.categoria or "").strip().lower() == norm_cat
-            and (c.descricao or "").strip().lower() == norm_desc
-        ]
+        if item.compra_id:
+            matched = [item.compra]
+        else:
+            norm_cat = (item.categoria or "").strip().lower()
+            norm_desc = (item.descricao or "").strip().lower()
+            matched = [
+                c for c in Compra.objects.all()
+                if (c.categoria or "").strip().lower() == norm_cat
+                and (c.descricao or "").strip().lower() == norm_desc
+            ]
         data = CompraSerializer(matched, many=True).data
         return Response({"count": len(data), "next": None, "previous": None, "results": data})
 

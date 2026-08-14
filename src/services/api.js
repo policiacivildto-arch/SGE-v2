@@ -30,6 +30,15 @@ function hasTokens() {
   return Boolean(getAccessToken());
 }
 
+// Os routers do DRF exigem barra final. Sem isso, o Django responde
+// com redirect 301 pra versão com barra — que o fetch segue trocando
+// POST/PATCH/DELETE por GET (comportamento padrão de redirect no
+// browser), descartando a operação silenciosamente. Então toda URL
+// de recurso precisa terminar em '/' antes da query string.
+function withTrailingSlash(path) {
+  return path.endsWith('/') ? path : `${path}/`;
+}
+
 async function refreshAccessToken() {
   const refresh = getRefreshToken();
   if (!refresh) return false;
@@ -88,7 +97,7 @@ export const apiService = {
 
   async getList(resource, params) {
     const query = params ? `?${params.toString()}` : '';
-    const res = await authFetch(`/api/${resource}${query}`);
+    const res = await authFetch(`/api/${withTrailingSlash(resource)}${query}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao buscar lista de ${resource}`);
@@ -97,7 +106,7 @@ export const apiService = {
   },
 
   async get(path) {
-    const res = await authFetch(`/api/${path}`);
+    const res = await authFetch(`/api/${withTrailingSlash(path)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao buscar ${path}`);
@@ -106,7 +115,7 @@ export const apiService = {
   },
 
   async create(resource, payload) {
-    const res = await authFetch(`/api/${resource}`, {
+    const res = await authFetch(`/api/${withTrailingSlash(resource)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -120,7 +129,7 @@ export const apiService = {
 
   async update(resource, id, payload) {
     // If id is provided as separate argument, use resource/id, else resource represents the path
-    const urlPath = id ? `${resource}/${id}` : resource;
+    const urlPath = withTrailingSlash(id ? `${resource}/${id}` : resource);
     const res = await authFetch(`/api/${urlPath}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -134,7 +143,7 @@ export const apiService = {
   },
 
   async remove(resource, id) {
-    const urlPath = id ? `${resource}/${id}` : resource;
+    const urlPath = withTrailingSlash(id ? `${resource}/${id}` : resource);
     const res = await authFetch(`/api/${urlPath}`, {
       method: 'DELETE',
     });
@@ -146,7 +155,7 @@ export const apiService = {
   },
 
   async patch(path, payload) {
-    const res = await authFetch(`/api/${path}`, {
+    const res = await authFetch(`/api/${withTrailingSlash(path)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -160,7 +169,7 @@ export const apiService = {
 
   async download(path, filename, params) {
     const query = params ? `?${params.toString()}` : '';
-    const res = await authFetch(`/api/${path}${query}`);
+    const res = await authFetch(`/api/${withTrailingSlash(path)}${query}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ao baixar arquivo de ${path}`);

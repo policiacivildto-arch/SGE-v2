@@ -35,6 +35,10 @@ class ItemSerializer(serializers.ModelSerializer):
         source="fornecedor", queryset=Fornecedor.objects.all(),
         allow_null=True, required=False,
     )
+    compra_id = serializers.PrimaryKeyRelatedField(
+        source="compra", queryset=Compra.objects.all(),
+        allow_null=True, required=False,
+    )
     criado_por_id = serializers.PrimaryKeyRelatedField(source="criado_por", read_only=True)
 
     class Meta:
@@ -42,7 +46,7 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = [
             "id", "patrimonio", "descricao", "categoria", "tamanho", "sexo",
             "cargo", "marca", "serie", "qtd_total", "qtd_disp", "qtd_min",
-            "fornecedor_id", "dt_aq", "dt_val", "valor_compra", "status",
+            "fornecedor_id", "compra_id", "dt_aq", "dt_val", "valor_compra", "status",
             "obs", "tipo", "modelo", "criado_por_id", "criado_em", "atualizado_em",
         ]
 

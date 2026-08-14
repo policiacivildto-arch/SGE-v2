@@ -79,6 +79,14 @@ class Item(BaseModel):
         Fornecedor, on_delete=models.PROTECT, related_name="itens",
         null=True, blank=True,
     )
+    # Adicionado na Fase 5 (cutover do frontend): db.json tinha
+    # itens[].compra_id/bens[].compra_id, mas o model original não
+    # modelava essa relação — CadItensCompra.jsx depende dela para
+    # listar as compras de um item (GET /api/itens/{id}/compras/).
+    compra = models.ForeignKey(
+        "Compra", on_delete=models.SET_NULL, related_name="itens",
+        null=True, blank=True,
+    )
     dt_aq = models.DateField(null=True, blank=True)
     dt_val = models.DateField(null=True, blank=True)
     valor_compra = models.DecimalField(
