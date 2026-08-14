@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/nodemailer": "^8.0.1",
     "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.7",
     "nodemailer": "^9.0.4",
     "pdfkit": "^0.19.1",
     "react": "^19.2.7",

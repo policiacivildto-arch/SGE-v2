@@ -2440,13 +2440,17 @@ async function startServer() {
   // --- Proxy reverso para o backend Django ---
   // Qualquer rota /api/* que não tenha sido tratada pelos handlers acima
   // (ainda não migrados deste arquivo) cai aqui e é encaminhada para o
-  // backend_django. Conforme cada recurso é migrado, o handler
+  // backend Django. Conforme cada recurso é migrado, o handler
   // correspondente é removido deste arquivo e passa a cair neste fallback.
   app.use(
     "/api",
     createProxyMiddleware({
-      target: process.env.DJANGO_BACKEND_URL || "http://backend_django:8000",
+      target: process.env.DJANGO_BACKEND_URL || "http://backend:8000",
       changeOrigin: true,
+      // app.use("/api", ...) já removeu o prefixo /api de req.url antes
+      // de chegar aqui — precisa devolver, já que as rotas Django também
+      // vivem sob /api/.
+      pathRewrite: (path) => `/api${path}`,
     })
   );
 

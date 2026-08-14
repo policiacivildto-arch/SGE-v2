@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  backend_django:
+  backend:
     build:
       context: ./backend_django
       dockerfile: Dockerfile
@@ -65,11 +65,11 @@ services:
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_SECURE: "${SMTP_SECURE:-false}"
-      DJANGO_BACKEND_URL: "http://backend_django:8000"
+      DJANGO_BACKEND_URL: "http://backend:8000"
     ports:
       - "3000:3000"
     depends_on:
-      - backend_django
+      - backend
 
 volumes:
   postgres_data:
