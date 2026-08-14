@@ -13,6 +13,7 @@ import { GlockIcon, MunicoesIcon } from './components/CategoryIcons';
 import { getSavedDeptosList, getDeptoSigla, matchDeptoFlex, buildLotacaoToDeptoMap, normalizeStr } from './utils/deptoUtils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import UserHeaderBar from './components/UserHeaderBar';
+import LoginPage from './pages/LoginPage';
 import './index.css';
 
 const formatLocalDate = (dateStr) => {
@@ -56,6 +57,7 @@ const getAmmunitionDetails = (description, quantity) => {
 /* eslint-disable react/prop-types */
 
 function App() {
+  const { currentUser, initializing } = useAuth();
   const [activePage, setActivePage] = useState('pg-dash-estoque');
   const [counts, setCounts] = useState({
     itens: 0,
@@ -88,8 +90,23 @@ function App() {
   };
 
   useEffect(() => {
-    loadGlobalCounts();
-  }, [activePage]);
+    if (currentUser) loadGlobalCounts();
+  }, [activePage, currentUser]);
+
+  if (initializing) {
+    return (
+      <div style={{
+        minHeight: '100vh', width: '100%', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', color: '#94a3b8'
+      }}>
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
 
   // Render the current view
   const renderContent = () => {
