@@ -25,6 +25,7 @@ em vez de duplicar a lista aqui.
 """
 
 import json
+import re
 import unicodedata
 from pathlib import Path
 
@@ -42,7 +43,7 @@ from cadastros.models import (
     Policial,
 )
 from estoque.models import Arma, BemIndividual, Compra, Item
-from operacoes.models import Cautela
+from operacoes.models import Cautela, SequenciaNumeracao
 
 
 def _s(value):
@@ -426,3 +427,26 @@ class Command(BaseCommand):
             )
             n += 1
         self.stdout.write(f"Cautelas: {n} migradas.")
+        self._sincronizar_contador_cautela()
+
+    def _sincronizar_contador_cautela(self):
+        """`operacoes.services.proximo_numero_cautela` usa
+        SequenciaNumeracao(chave=f"cautela-{ano}") para gerar o próximo
+        número — sem isso, o contador fica em 0 e a primeira cautela
+        criada depois da migração colide com um `numero` já migrado
+        (UNIQUE constraint). Varre os números migrados no formato
+        CAU-<ano>-<n> e adianta o contador de cada ano pro maior n visto."""
+        maior_por_ano = {}
+        for numero in Cautela.objects.values_list("numero", flat=True):
+            m = re.match(r"^CAU-(\d{4})-(\d+)$", numero or "")
+            if not m:
+                continue
+            ano, n = m.group(1), int(m.group(2))
+            maior_por_ano[ano] = max(maior_por_ano.get(ano, 0), n)
+
+        for ano, maior in maior_por_ano.items():
+            SequenciaNumeracao.objects.update_or_create(
+                chave=f"cautela-{ano}", defaults={"ultimo_valor": maior}
+            )
+        if maior_por_ano:
+            self.stdout.write(f"Contador de numeração de cautelas sincronizado: {maior_por_ano}")

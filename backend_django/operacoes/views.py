@@ -113,6 +113,27 @@ class CautelaViewSet(viewsets.ModelViewSet):
     permission_classes = [SGARolePermission]
     section = "estoque"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        cautela_status = self.request.query_params.get("status")
+        categoria = self.request.query_params.get("categoria")
+        lotacao = self.request.query_params.get("lotacao")
+        if cautela_status:
+            qs = qs.filter(status=cautela_status)
+        if categoria:
+            categoria = "Coletes Balísticos" if categoria == "Coletes" else categoria
+            qs = qs.filter(item__categoria=categoria)
+        if lotacao:
+            qs = qs.filter(lotacao__nome=lotacao)
+        if search:
+            qs = qs.filter(
+                Q(numero__icontains=search) | Q(policial_nome__icontains=search)
+                | Q(matricula__icontains=search) | Q(departamento__nome__icontains=search)
+                | Q(lotacao__nome__icontains=search) | Q(item_desc__icontains=search)
+            )
+        return qs
+
     def create(self, request, *args, **kwargs):
         serializer = CautelaCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
