@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import http from "http";
 import { createServer as createViteServer } from "vite";
-import { createProxyMiddleware } from "http-proxy-middleware";
+import { createProxyMiddleware, fixRequestBody } from "http-proxy-middleware";
 import { serverDb } from "./serverDb.js";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
@@ -2451,6 +2451,12 @@ async function startServer() {
       // de chegar aqui — precisa devolver, já que as rotas Django também
       // vivem sob /api/.
       pathRewrite: (path) => `/api${path}`,
+      on: {
+        // express.json() (registrado global lá em cima) já consumiu o
+        // stream do corpo da requisição — sem isso, POST/PUT/PATCH ficam
+        // pendurados esperando um corpo que nunca chega no destino.
+        proxyReq: fixRequestBody,
+      },
     })
   );
 

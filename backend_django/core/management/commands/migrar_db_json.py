@@ -1,7 +1,7 @@
 """Migra os dados de db.json (raiz do repo) para o Postgres via ORM.
 
 Roda uma única vez, manualmente:
-    docker compose exec backend_django python manage.py migrar_db_json
+    docker compose exec backend python manage.py migrar_db_json
 
 Não faz parte do boot normal do container (entrypoint.sh só roda
 `migrate`, não este comando) — dados de produção não devem ser
@@ -18,14 +18,18 @@ db.json hoje e não precisam de import.
 
 Usuários não vêm de db.json (a entrada lá é lixo/1 registro solto) —
 os usuários reais estão hardcoded em SEED_USERS
-(src/context/AuthContext.jsx:24-52), replicados aqui porque não há
-outra fonte de verdade para eles.
+(src/context/AuthContext.jsx:24-52). O comando `seed_usuarios`
+(usuarios/management/commands/seed_usuarios.py) já replica essa lista
+com senha hasheada — este comando só reaproveita ele via call_command
+em vez de duplicar a lista aqui.
 """
 
 import json
+import unicodedata
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -40,31 +44,20 @@ from cadastros.models import (
 from estoque.models import Arma, BemIndividual, Compra, Item
 from operacoes.models import Cautela
 
-SEED_USERS = [
-    {
-        "email": "admin@pc.ce.gov.br",
-        "password": "Admin@1234",
-        "nome": "Administrador Geral",
-        "role": "admin",
-    },
-    {
-        "email": "armeiro@pc.ce.gov.br",
-        "password": "Armeiro@1234",
-        "nome": "Armeiro Plantonista",
-        "role": "armeiro",
-    },
-    {
-        "email": "admin.serv@pc.ce.gov.br",
-        "password": "Admin@1234",
-        "nome": "Agente Administrativo",
-        "role": "administrativo",
-    },
-]
-
 
 def _s(value):
     """None -> "" para CharField/TextField não-nulos."""
     return value if value is not None else ""
+
+
+def _norm(nome):
+    """Normaliza nome para comparação: sem acento, sem espaços nas
+    pontas, minúsculo. db.json mistura grafias com/sem acento para o
+    mesmo departamento/lotação (ex. "Coordenadoria de Logistica" nos
+    departamentos "seed" vs "Coordenadoria de Logística" no texto livre
+    de lotações/policiais)."""
+    sem_acento = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii")
+    return sem_acento.strip().lower()
 
 
 class Command(BaseCommand):
@@ -108,8 +101,8 @@ class Command(BaseCommand):
         data = json.loads(db_json_path.read_text(encoding="utf-8"))
 
         with transaction.atomic():
-            usuarios = self._migrar_usuarios()
-            admin_user = usuarios["admin@pc.ce.gov.br"]
+            call_command("seed_usuarios")
+            admin_user = get_user_model().objects.get(email="admin@pc.ce.gov.br")
 
             departamentos = self._migrar_departamentos(data.get("departamentos", []))
             delegacias = self._migrar_delegacias(data.get("delegacias", []), departamentos)
@@ -128,32 +121,12 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Migração concluída."))
 
-    # -- usuários -----------------------------------------------------
-
-    def _migrar_usuarios(self):
-        Usuario = get_user_model()
-        criados = {}
-        for seed in SEED_USERS:
-            user, _ = Usuario.objects.update_or_create(
-                email=seed["email"],
-                defaults={
-                    "username": seed["email"],
-                    "nome": seed["nome"],
-                    "role": seed["role"],
-                    "ativo": True,
-                },
-            )
-            user.set_password(seed["password"])
-            user.save()
-            criados[seed["email"]] = user
-        self.stdout.write(f"Usuários: {len(criados)} migrados de SEED_USERS.")
-        return criados
-
     # -- cadastros ------------------------------------------------------
 
     def _migrar_departamentos(self, rows):
         mapa_por_id = {}
-        mapa_por_nome = {}
+        self._departamentos_por_nome = {}
+        self._departamentos_criados_extra = 0
         for row in rows:
             obj = Departamento.objects.create(
                 nome=_s(row.get("nome")),
@@ -161,15 +134,26 @@ class Command(BaseCommand):
                 ativo=bool(row.get("ativo", True)),
             )
             mapa_por_id[row["id"]] = obj
-            mapa_por_nome[obj.nome.strip().lower()] = obj
-        self._departamentos_por_nome = mapa_por_nome
+            self._departamentos_por_nome[_norm(obj.nome)] = obj
         self.stdout.write(f"Departamentos: {len(mapa_por_id)} migrados.")
         return mapa_por_id
 
     def _dep_by_nome(self, nome):
+        """Busca por nome normalizado (sem acento/caixa); cria o
+        Departamento na hora se não existir. `db.json.departamentos` só
+        tem 5 registros "seed", mas lotações/policiais/cautelas
+        referenciam ~27 nomes reais da estrutura organizacional — sem
+        isso, quase todas as lotações ficariam órfãs (Lotacao.departamento
+        não é nullable)."""
         if not nome:
             return None
-        return self._departamentos_por_nome.get(nome.strip().lower())
+        chave = _norm(nome)
+        dep = self._departamentos_por_nome.get(chave)
+        if dep is None:
+            dep = Departamento.objects.create(nome=nome.strip(), ativo=True)
+            self._departamentos_por_nome[chave] = dep
+            self._departamentos_criados_extra += 1
+        return dep
 
     def _migrar_delegacias(self, rows, departamentos):
         mapa = {}
@@ -212,7 +196,7 @@ class Command(BaseCommand):
                 seccional=row.get("seccional") or None,
             )
             mapa_por_id[row["id"]] = obj
-            mapa_por_nome[obj.nome.strip().lower()] = obj
+            mapa_por_nome[_norm(obj.nome)] = obj
         self._lotacoes_por_nome = mapa_por_nome
         self.stdout.write(f"Lotações: {len(mapa_por_id)} migradas ({pulados} puladas por depto não encontrado).")
         return mapa_por_id
@@ -220,7 +204,7 @@ class Command(BaseCommand):
     def _lotacao_by_nome(self, nome):
         if not nome:
             return None
-        return self._lotacoes_por_nome.get(nome.strip().lower())
+        return self._lotacoes_por_nome.get(_norm(nome))
 
     def _migrar_policiais(self, rows, departamentos, lotacoes):
         mapa = {}
