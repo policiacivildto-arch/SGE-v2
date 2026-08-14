@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from usuarios.permissions import SGARolePermission
 
+from . import services
 from .models import Arma, BemIndividual, Compra, Item
 from .serializers import ArmaSerializer, BemIndividualSerializer, CompraSerializer, ItemSerializer
 
@@ -19,6 +20,17 @@ class CompraViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(criado_por=self.request.user)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(descricao__icontains=search) | Q(categoria__icontains=search)
+                | Q(marca__icontains=search) | Q(modelo__icontains=search)
+                | Q(serie__icontains=search)
+            )
+        return qs
 
 
 def _escape_csv(val) -> str:
@@ -44,8 +56,51 @@ class ItemViewSet(viewsets.ModelViewSet):
     permission_classes = [SGARolePermission]
     section = "estoque"
 
-    def perform_create(self, serializer):
-        serializer.save(criado_por=self.request.user)
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get("search")
+        categoria = self.request.query_params.get("categoria")
+        item_status = self.request.query_params.get("status")
+        if categoria:
+            categoria = "Coletes Balísticos" if categoria == "Coletes" else categoria
+            qs = qs.filter(categoria=categoria)
+        if item_status:
+            qs = qs.filter(status=item_status)
+        if search:
+            qs = qs.filter(
+                Q(patrimonio__icontains=search) | Q(descricao__icontains=search)
+                | Q(categoria__icontains=search) | Q(marca__icontains=search)
+                | Q(serie__icontains=search)
+            )
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        """Réplica de POST /api/itens (server.ts:783) — não é CRUD
+        simples: mescla em item existente de mesma categoria+descrição,
+        gera bens individuais e cria Arma automaticamente quando
+        aplicável. Ver estoque/services.py."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = services.criar_ou_mesclar_item(
+            dict(serializer.validated_data), request.data, request.user
+        )
+        return Response(
+            self.get_serializer(item).data, status=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        """Réplica de PATCH /api/itens/:id (server.ts:878) — sincroniza
+        bens individuais (cria/remove pelo diff de qtd_total, propaga
+        tamanho/sexo/dt_val/patrimônio/série) depois de salvar."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        old_qtd_total = instance.qtd_total
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        item = serializer.save()
+        services.atualizar_item_e_sincronizar_bens(item, old_qtd_total, None)
+        item.refresh_from_db()
+        return Response(self.get_serializer(item).data)
 
     @action(detail=False, methods=["get"], url_path="relatorio-xlsx")
     def relatorio_xlsx(self, request):
@@ -158,6 +213,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         não quebrar o formato de resposta que o frontend já espera.
         """
         item = self.get_object()
+        services.sincronizar_bens_do_item(item.pk)
         bens_qs = BemIndividual.objects.filter(item=item).order_by("patrimonio")
         compra_data = CompraSerializer(item.compra).data if item.compra_id else None
         data = []
@@ -191,13 +247,28 @@ class ItemViewSet(viewsets.ModelViewSet):
 
 
 class BemIndividualViewSet(viewsets.ModelViewSet):
-    queryset = BemIndividual.objects.all().order_by("-criado_em")
+    queryset = BemIndividual.objects.all().order_by("patrimonio")
     serializer_class = BemIndividualSerializer
     permission_classes = [SGARolePermission]
     section = "estoque"
 
     def perform_create(self, serializer):
         serializer.save(criado_por=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        """Réplica de GET /api/bens (server.ts:1064) — sincroniza o
+        status de todos os bens com as cautelas ativas a cada listagem
+        (server.ts fazia o mesmo, dinamicamente, a cada GET) e enriquece
+        com dados do item pai (server.ts:1079-1088)."""
+        services.sincronizar_todos_bens()
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("item")
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(Q(patrimonio__icontains=search) | Q(serie__icontains=search))
+        return qs
 
 
 class ArmaViewSet(viewsets.ModelViewSet):
@@ -208,3 +279,13 @@ class ArmaViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(criado_por=self.request.user)
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("item")
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(marca__icontains=search) | Q(modelo__icontains=search)
+                | Q(numero_serie__icontains=search)
+            )
+        return qs
