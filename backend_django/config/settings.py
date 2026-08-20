@@ -47,9 +47,15 @@ SECRET_KEY = read_secret(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True") == "True"
+# Seguro por padrão: sem DEBUG/ALLOWED_HOSTS explícitos no ambiente, o
+# Django sobe travado (DEBUG=False, nenhum host permitido) em vez de
+# aberto. Dev local (.env.example) e Docker (docker-compose.yml) já
+# definem os dois explicitamente, então esse endurecimento não quebra
+# nenhum fluxo documentado — só remove o risco de um deploy esquecer
+# de setar as variáveis e subir em modo inseguro por acidente.
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = [h for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h]
+ALLOWED_HOSTS = [h for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h]
 
 
 # Application definition
