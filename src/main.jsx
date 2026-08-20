@@ -5060,9 +5060,18 @@ function RelatoriosServicosView() {
   };
 
   const handlePrintOSCard = (s) => {
+    // Campos de texto livre (descrição, parecer, nomes, peças) vêm de
+    // formulários preenchidos por usuários e são injetados via
+    // document.write abaixo — sem escapar, um campo como a descrição do
+    // reparo vira XSS armazenado executado na janela de impressão de
+    // qualquer um que abrir essa OS.
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+
     const pecasList = Object.entries(s.pecas_substituidas || {})
       .filter(([_, qty]) => Number(qty) > 0)
-      .map(([peca, qty]) => `<li><strong>${peca}:</strong> ${qty} un.</li>`)
+      .map(([peca, qty]) => `<li><strong>${esc(peca)}:</strong> ${esc(qty)} un.</li>`)
       .join('');
 
     const printWin = window.open('', '_blank', 'width=800,height=900');
@@ -5072,7 +5081,7 @@ function RelatoriosServicosView() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Ordem de Serviço - ${s.codigo}</title>
+          <title>Ordem de Serviço - ${esc(s.codigo)}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 30px; color: #1a202c; font-size: 13px; line-height: 1.5; }
             .header { text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 12px; margin-bottom: 20px; }
@@ -5104,7 +5113,7 @@ function RelatoriosServicosView() {
             <h2>DEPARTAMENTO TÉCNICO OPERACIONAL</h2>
             <h2>SEÇÃO DE AQUISIÇÃO, LOGÍSTICA E TIRO - DTO</h2>
             <div style="margin-top: 10px; font-size: 16px; font-weight: bold; color: #1a365d;">
-              ORDEM DE SERVIÇO Nº ${s.codigo}
+              ORDEM DE SERVIÇO Nº ${esc(s.codigo)}
             </div>
           </div>
 
@@ -5116,7 +5125,7 @@ function RelatoriosServicosView() {
               </div>
               <div>
                 <span class="label">Situação Atual</span>
-                <span class="val">${s.status}</span>
+                <span class="val">${esc(s.status)}</span>
               </div>
             </div>
           </div>
@@ -5126,19 +5135,19 @@ function RelatoriosServicosView() {
             <div class="grid">
               <div>
                 <span class="label">Nome do Policial</span>
-                <span class="val">${s.policial_nome || '—'}</span>
+                <span class="val">${esc(s.policial_nome || '—')}</span>
               </div>
               <div>
                 <span class="label">Matrícula</span>
-                <span class="val">${s.matricula || '—'}</span>
+                <span class="val">${esc(s.matricula || '—')}</span>
               </div>
               <div>
                 <span class="label">Unidade / Lotação</span>
-                <span class="val">${s.lotacao || '—'}</span>
+                <span class="val">${esc(s.lotacao || '—')}</span>
               </div>
               <div>
                 <span class="label">Departamento</span>
-                <span class="val">${s.depto || '—'}</span>
+                <span class="val">${esc(s.depto || '—')}</span>
               </div>
             </div>
           </div>
@@ -5148,19 +5157,19 @@ function RelatoriosServicosView() {
             <div class="grid">
               <div>
                 <span class="label">Especificação</span>
-                <span class="val">${s.marca || ''} ${s.modelo || ''}</span>
+                <span class="val">${esc(s.marca || '')} ${esc(s.modelo || '')}</span>
               </div>
               <div>
                 <span class="label">Nº de Série</span>
-                <span class="val" style="color: #c53030;">${s.serie || '—'}</span>
+                <span class="val" style="color: #c53030;">${esc(s.serie || '—')}</span>
               </div>
               <div>
                 <span class="label">Calibre</span>
-                <span class="val">${s.calibre || '—'}</span>
+                <span class="val">${esc(s.calibre || '—')}</span>
               </div>
               <div>
                 <span class="label">Categoria</span>
-                <span class="val">${s.categoria || 'Armamento'}</span>
+                <span class="val">${esc(s.categoria || 'Armamento')}</span>
               </div>
             </div>
           </div>
@@ -5169,19 +5178,19 @@ function RelatoriosServicosView() {
             <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #1a365d; border-bottom: 1px solid #cbd5e0; padding-bottom: 4px;">🛠️ DETALHES DO SERVIÇO & PARECER TÉCNICO</h3>
             <div style="margin-bottom: 10px;">
               <span class="label">Tipo de Serviço</span>
-              <span class="val" style="color: #2b6cb0;">${s.tipo}</span>
+              <span class="val" style="color: #2b6cb0;">${esc(s.tipo)}</span>
             </div>
             <div style="margin-bottom: 10px;">
               <span class="label">Armeiro Responsável</span>
-              <span class="val">${s.armeiro || '—'}</span>
+              <span class="val">${esc(s.armeiro || '—')}</span>
             </div>
             <div style="margin-bottom: 10px;">
               <span class="label">Descrição do Problema / Solicitação</span>
-              <div style="background: #fff; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; margin-top: 4px;">${s.descricao || 'Sem descrição cadastrada.'}</div>
+              <div style="background: #fff; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; margin-top: 4px;">${esc(s.descricao || 'Sem descrição cadastrada.')}</div>
             </div>
             <div>
               <span class="label">Parecer Técnico / Trabalho Realizado</span>
-              <div style="background: #fff; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; margin-top: 4px;">${s.trabalho_realizado || 'Pendente / Em análise.'}</div>
+              <div style="background: #fff; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; margin-top: 4px;">${esc(s.trabalho_realizado || 'Pendente / Em análise.')}</div>
             </div>
           </div>
 
@@ -5193,14 +5202,14 @@ function RelatoriosServicosView() {
           <div class="signatures">
             <div>
               <div class="line">
-                ${s.armeiro || 'Armeiro Responsável'}<br/>
+                ${esc(s.armeiro || 'Armeiro Responsável')}<br/>
                 <span style="font-weight: normal; font-size: 11px; color: #718096;">Seção de Aquisição, Logística e Tiro - DTO</span>
               </div>
             </div>
             <div>
               <div class="line">
-                ${s.policial_nome || 'Policial Responsável'}<br/>
-                <span style="font-weight: normal; font-size: 11px; color: #718096;">Matrícula: ${s.matricula || '—'}</span>
+                ${esc(s.policial_nome || 'Policial Responsável')}<br/>
+                <span style="font-weight: normal; font-size: 11px; color: #718096;">Matrícula: ${esc(s.matricula || '—')}</span>
               </div>
             </div>
           </div>

@@ -80,6 +80,8 @@ def criar_cautela(dados, usuario, request):
         conflito = Cautela.objects.select_for_update().filter(
             serie__iexact=selected_serie
         ).exclude(status=CautelaStatusChoices.DEVOLVIDO)
+        if item_id:
+            conflito = conflito.filter(item_id=item_id)
         if conflito.exists():
             raise CautelaError(
                 f'O item com número de série "{selected_serie}" já possui uma cautela ativa ou pendente.'
@@ -125,20 +127,32 @@ def criar_cautela(dados, usuario, request):
                      or (b.patrimonio or "").strip().lower() == selected_serie.lower()),
                     None,
                 )
+                if allocated_bem is None:
+                    raise CautelaError(
+                        f'Nenhum bem individual encontrado para a série/patrimônio "{selected_serie}".'
+                    )
+                if allocated_bem.status != StatusItemChoices.DISPONIVEL:
+                    raise CautelaError(
+                        f'O bem com série/patrimônio "{selected_serie}" não está disponível para cautela.'
+                    )
             else:
                 allocated_bem = next((b for b in bens_do_item if b.status == StatusItemChoices.DISPONIVEL), None)
-                if allocated_bem:
-                    selected_serie = allocated_bem.serie or allocated_bem.patrimonio
+                if allocated_bem is None:
+                    raise CautelaError("Não há bens individuais disponíveis para este item.")
+                selected_serie = allocated_bem.serie or allocated_bem.patrimonio
 
-            if allocated_bem:
-                allocated_bem.status = StatusItemChoices.EM_USO
-                allocated_bem.save(update_fields=["status"])
+            allocated_bem.status = StatusItemChoices.EM_USO
+            allocated_bem.save(update_fields=["status"])
 
             item.qtd_disp = BemIndividual.objects.filter(
                 item=item, status=StatusItemChoices.DISPONIVEL
             ).count()
         else:
-            item.qtd_disp = max(0, item.qtd_disp - qtd)
+            if qtd > item.qtd_disp:
+                raise CautelaError(
+                    f'Estoque insuficiente para "{item.descricao}": disponível {item.qtd_disp}, solicitado {qtd}.'
+                )
+            item.qtd_disp = item.qtd_disp - qtd
 
         if item.qtd_disp == 0:
             item.status = StatusItemChoices.EM_USO
@@ -263,7 +277,16 @@ def assinar_cautela(cautela, assinatura_digital, tipo=None, request=None):
     if not assinatura_digital:
         raise CautelaError("assinatura_digital é obrigatória.")
 
-    is_devolucao = tipo == "devolucao" or cautela.status == CautelaStatusChoices.PENDENTE_DEVOLUCAO
+    # `tipo` vem do cliente só como dica de UI — o estado real da cautela
+    # é quem decide se isso é assinatura de saída ou de devolução. Confiar
+    # em `tipo` do cliente permitiria forjar a transição (ex.: mandar
+    # tipo="devolucao" numa cautela Ativa e pular `devolver_cautela`,
+    # marcando-a como Devolvido sem nunca liberar o bem/estoque).
+    is_devolucao = cautela.status == CautelaStatusChoices.PENDENTE_DEVOLUCAO
+    if tipo == "devolucao" and not is_devolucao:
+        raise CautelaError(
+            "Esta cautela ainda não passou pela devolução; chame /devolver antes de assinar a devolução."
+        )
     hash_assinatura = _gerar_hash_assinatura()
     agora = timezone.now()
 

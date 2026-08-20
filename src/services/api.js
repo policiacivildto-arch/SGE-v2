@@ -52,7 +52,12 @@ async function refreshAccessToken() {
       .then(async (res) => {
         if (!res.ok) return false;
         const data = await res.json();
-        setTokens(data.access, refresh);
+        // SIMPLE_JWT tem ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION
+        // ligados (backend_django/config/settings.py) — o refresh usado
+        // acima já foi invalidado no backend e a resposta traz um novo
+        // em `data.refresh`. Guardar o `refresh` antigo aqui derruba o
+        // usuário no próximo refresh (token já na blacklist).
+        setTokens(data.access, data.refresh);
         return true;
       })
       .catch(() => false)
