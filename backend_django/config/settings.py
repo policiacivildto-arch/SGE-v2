@@ -14,6 +14,20 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Uso local (`python manage.py runserver`) fora do Docker: DEPLOYMENT_GUIDE.md
+# manda copiar .env.example para .env, mas nada carregava esse arquivo —
+# os.getenv só enxerga variáveis de ambiente reais do processo, então o
+# .env ficava sem nenhum efeito. load_dotenv() só popula variáveis que
+# ainda não existem no ambiente (override=False, padrão), então em
+# Docker (onde não há .env e as variáveis já vêm do compose/entrypoint)
+# isto não muda nada.
+load_dotenv(BASE_DIR / ".env")
+
 
 def read_secret(secret_name, default=None):
     """Lê /run/secrets/<nome> (Docker secret sem sufixo); cai para env var.
@@ -31,10 +45,6 @@ def read_secret(secret_name, default=None):
         except OSError:
             pass
     return os.getenv(secret_name, default)
-
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
