@@ -201,6 +201,12 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API do Sistema de Gestão de Armaria da Polícia Civil do Ceará.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    # StatusItemChoices é reaproveitado em vários campos (BemIndividual.status,
+    # Item.status, Cautela.condicao_dev) — sem isso o drf-spectacular gera um
+    # nome de enum diferente (às vezes com sufixo hash) por campo.
+    'ENUM_NAME_OVERRIDES': {
+        'StatusItemEnum': 'estoque.models.StatusItemChoices.choices',
+    },
 }
 
 # E-mail (Fase 3) — nomes de env var idênticos aos do server.ts (Node)

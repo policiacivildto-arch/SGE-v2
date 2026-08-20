@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiService } from '../services/api';
 import { DEPARTAMENTOS_PADRAO } from '../constants/organizacao';
 import { getMenuOptions } from '../services/menuOptions';
-import Modal from '../components/Modal';
 import { GlockIcon } from '../components/CategoryIcons';
 import { getSavedDeptosList, matchDeptoFlex } from '../utils/deptoUtils';
 import { useAuth } from '../context/AuthContext';
@@ -48,10 +47,6 @@ function NovoServico({ onNavigate }) {
 	const [armaEncontrada, setArmaEncontrada] = useState(null);
 	const [sugestoesSeries, setSugestoesSeries] = useState([]);
 	const [sugestoesPoliciais, setSugestoesPoliciais] = useState([]);
-	const [showConfirmLotacaoModal, setShowConfirmLotacaoModal] = useState(false);
-	const [showConfirmArmaModal, setShowConfirmArmaModal] = useState(false);
-	const [pendingShowArmaModal, setPendingShowArmaModal] = useState(false);
-	const [pendingPolicial, setPendingPolicial] = useState(null);
 	const [lastConfirmedMatricula, setLastConfirmedMatricula] = useState('');
 	const [cautelasAtivas, setCautelasAtivas] = useState([]);
 	const [loadingCautelas, setLoadingCautelas] = useState(false);
@@ -244,7 +239,6 @@ function NovoServico({ onNavigate }) {
 				depto: found.depto || prev.depto,
 				lotacao: found.lotacao || prev.lotacao,
 			}));
-			setPendingPolicial(found);
 			setLastConfirmedMatricula(found.matricula);
 		}, 200);
 
@@ -254,7 +248,6 @@ function NovoServico({ onNavigate }) {
 	useEffect(() => {
 		if (!form.policial_id && !form.matricula && !form.policial_nome) {
 			setCautelasAtivas([]);
-			setPendingShowArmaModal(false);
 			return;
 		}
 
@@ -288,15 +281,6 @@ function NovoServico({ onNavigate }) {
 
 		fetchCautelas();
 	}, [form.policial_id, form.matricula, form.policial_nome]);
-
-	useEffect(() => {
-		if (pendingShowArmaModal && !loadingCautelas) {
-			if (cautelasAtivas.length > 0) {
-				setShowConfirmArmaModal(true);
-			}
-			setPendingShowArmaModal(false);
-		}
-	}, [pendingShowArmaModal, loadingCautelas, cautelasAtivas]);
 
 	const handleSelectCautela = async (cautela) => {
 		const serie = normalizeSerie(cautela.serie);
@@ -919,114 +903,6 @@ function NovoServico({ onNavigate }) {
 					{loading ? 'Salvando...' : '💾 Salvar Ordem de Serviço'}
 				</button>
 			</div>
-
-			<Modal
-				isOpen={showConfirmLotacaoModal}
-				title="Confirmar Lotação do Policial"
-				onClose={() => setShowConfirmLotacaoModal(false)}
-				footer={(
-					<>
-						<button 
-							className="btn btn-outline" 
-							onClick={() => {
-								setForm((prev) => ({
-									...prev,
-									depto: '',
-									lotacao: '',
-								}));
-								setShowConfirmLotacaoModal(false);
-								if (loadingCautelas) {
-									setPendingShowArmaModal(true);
-								} else if (cautelasAtivas.length > 0) {
-									setShowConfirmArmaModal(true);
-								}
-							}}
-						>
-							Não, alterar lotação
-						</button>
-						<button 
-							className="btn btn-primary" 
-							onClick={() => {
-								setShowConfirmLotacaoModal(false);
-								if (loadingCautelas) {
-									setPendingShowArmaModal(true);
-								} else if (cautelasAtivas.length > 0) {
-									setShowConfirmArmaModal(true);
-								}
-							}}
-						>
-							Sim, permanece nesta lotação
-						</button>
-					</>
-				)}
-			>
-				<div style={{ padding: '10px 0', fontSize: '15px', lineHeight: '1.6' }}>
-					<p>
-						O policial <strong>{pendingPolicial?.nome}</strong> (Matrícula: {pendingPolicial?.matricula}) está cadastrado na lotação:
-					</p>
-					<div style={{ margin: '15px 0', padding: '12px', borderLeft: '4px solid #3b82f6', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
-						<strong>Departamento:</strong> {pendingPolicial?.depto}<br />
-						<strong>Lotação:</strong> {pendingPolicial?.lotacao || 'Não especificada'}
-					</div>
-					<p>Ele permanece atuando nesta mesma lotação para esta solicitação de serviço?</p>
-				</div>
-			</Modal>
-
-			<Modal
-				isOpen={showConfirmArmaModal}
-				title="Confirmar Arma do Policial para Manutenção"
-				onClose={() => setShowConfirmArmaModal(false)}
-				footer={(
-					<button 
-						className="btn btn-outline" 
-						onClick={() => setShowConfirmArmaModal(false)}
-					>
-						Informar outro armamento manualmente
-					</button>
-				)}
-			>
-				<div style={{ padding: '10px 0', fontSize: '15px', lineHeight: '1.6' }}>
-					<p>
-						O policial <strong>{form.policial_nome || pendingPolicial?.nome}</strong> (Matrícula: {form.matricula || pendingPolicial?.matricula}) possui os seguintes armamentos acautelados ativos. Selecione qual deles é o objeto da manutenção:
-					</p>
-					<div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '15px 0' }}>
-						{cautelasAtivas.map((c) => (
-							<button
-								key={c.id}
-								type="button"
-								onClick={() => {
-									handleSelectCautela(c);
-									setShowConfirmArmaModal(false);
-								}}
-								style={{
-									display: 'block',
-									width: '100%',
-									textAlign: 'left',
-									padding: '16px',
-									border: 'none',
-									borderLeft: '4px solid #3b82f6',
-									backgroundColor: '#f3f4f6',
-									borderRadius: '6px',
-									cursor: 'pointer',
-									transition: 'all 0.2s',
-								}}
-								className="hover:bg-blue-50/50 hover:shadow-xs group"
-							>
-								<div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#1e293b', fontSize: '15px' }}>
-									<span>Série: {c.serie || c.numero_serie || 'Sem série'}</span>
-									<span style={{ color: '#3b82f6', fontSize: '12px', fontWeight: '600' }} className="group-hover:translate-x-1 transition-transform inline-block">Selecionar ➔</span>
-								</div>
-								<div style={{ fontSize: '13px', color: '#475569', marginTop: '6px' }}>
-									{c.item_desc || c.item_descricao || 'Armamento'}
-								</div>
-								<div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
-									<strong>Lotação:</strong> {c.lotacao || c.depto || '—'}
-								</div>
-							</button>
-						))}
-					</div>
-				</div>
-			</Modal>
 		</>
 	);
 }

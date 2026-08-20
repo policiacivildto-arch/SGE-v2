@@ -25,7 +25,7 @@ class DelegaciaSerializer(serializers.ModelSerializer):
             "ativo", "criado_em", "atualizado_em",
         ]
 
-    def get_departamento_nome(self, obj):
+    def get_departamento_nome(self, obj) -> str:
         return obj.departamento.nome if obj.departamento_id else ""
 
 
@@ -55,7 +55,7 @@ class LotacaoSerializer(serializers.ModelSerializer):
             "area_atuacao", "ais", "tel", "end", "seccional", "criado_em", "atualizado_em",
         ]
 
-    def get_depto(self, obj):
+    def get_depto(self, obj) -> str:
         return obj.departamento.nome if obj.departamento_id else ""
 
     def validate(self, attrs):
@@ -100,10 +100,10 @@ class PolicialSerializer(serializers.ModelSerializer):
             "criado_em", "atualizado_em",
         ]
 
-    def get_depto(self, obj):
+    def get_depto(self, obj) -> str:
         return obj.departamento.nome if obj.departamento_id else ""
 
-    def get_lotacao(self, obj):
+    def get_lotacao(self, obj) -> str:
         return obj.lotacao.nome if obj.lotacao_id else ""
 
     def validate(self, attrs):

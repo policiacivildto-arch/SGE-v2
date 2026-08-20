@@ -1,11 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import Sidebar from './components/Sidebar';
-import CadItens from './pages/CadItens';
-import CadItensCompra from './pages/CadItensCompra';
-import CadLotacoes from './pages/CadLotacoes';
-import Cautelas from './pages/Cautelas';
-import NovoServico from './pages/NovoServico';
 import Modal from './components/Modal';
 import { apiService } from './services/api';
 import DashboardDetalhes from './components/DashboardDetalhes';
@@ -13,8 +8,29 @@ import { GlockIcon, MunicoesIcon } from './components/CategoryIcons';
 import { getSavedDeptosList, getDeptoSigla, matchDeptoFlex, buildLotacaoToDeptoMap, normalizeStr } from './utils/deptoUtils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import UserHeaderBar from './components/UserHeaderBar';
-import LoginPage from './pages/LoginPage';
 import './index.css';
+
+// Páginas carregadas sob demanda: juntas somam a maior parte do bundle
+// (~13k das ~22k linhas do app). Como a navegação é por `activePage`, não
+// por rota de URL, cada uma só entra no bundle quando o usuário efetivamente
+// abre aquela seção pela primeira vez, em vez de tudo ir no chunk inicial.
+const CadItens = lazy(() => import('./pages/CadItens'));
+const CadItensCompra = lazy(() => import('./pages/CadItensCompra'));
+const CadLotacoes = lazy(() => import('./pages/CadLotacoes'));
+const Cautelas = lazy(() => import('./pages/Cautelas'));
+const NovoServico = lazy(() => import('./pages/NovoServico'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+
+function PageLoadingFallback() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '40vh', color: '#94a3b8', fontSize: '14px',
+    }}>
+      Carregando…
+    </div>
+  );
+}
 
 const formatLocalDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -105,7 +121,11 @@ function App() {
   }
 
   if (!currentUser) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   // Render the current view
@@ -166,7 +186,9 @@ function App() {
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar onNavigate={setActivePage} activePage={activePage} />
         <main className="main-content" style={{ flex: 1 }}>
-          {renderContent()}
+          <Suspense fallback={<PageLoadingFallback />}>
+            {renderContent()}
+          </Suspense>
         </main>
       </div>
     </div>

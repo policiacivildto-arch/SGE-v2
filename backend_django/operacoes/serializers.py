@@ -37,10 +37,10 @@ class ServicoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["codigo"]
 
-    def get_depto(self, obj):
+    def get_depto(self, obj) -> str:
         return obj.departamento.nome if obj.departamento_id else ""
 
-    def get_lotacao_nome(self, obj):
+    def get_lotacao_nome(self, obj) -> str:
         return obj.lotacao.nome if obj.lotacao_id else ""
 
     def validate(self, attrs):
@@ -123,13 +123,13 @@ class CautelaSerializer(serializers.ModelSerializer):
             if f not in _CAUTELA_EDITAVEIS and f not in ("depto", "lotacao_nome", "categoria")
         ]
 
-    def get_depto(self, obj):
+    def get_depto(self, obj) -> str:
         return obj.departamento.nome if obj.departamento_id else ""
 
-    def get_lotacao_nome(self, obj):
+    def get_lotacao_nome(self, obj) -> str:
         return obj.lotacao.nome if obj.lotacao_id else ""
 
-    def get_categoria(self, obj):
+    def get_categoria(self, obj) -> str:
         return obj.item.categoria if obj.item_id else ""
 
 

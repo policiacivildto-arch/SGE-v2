@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -8,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Usuario
 from .permissions import IsAdminRole
-from .serializers import LoginSerializer, UsuarioMeSerializer, UsuarioSerializer
+from .serializers import LoginSerializer, LogoutSerializer, UsuarioMeSerializer, UsuarioSerializer
 
 
 class LoginView(APIView):
@@ -19,6 +21,7 @@ class LoginView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(request=LoginSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -45,6 +48,7 @@ class LoginView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(request=LogoutSerializer, responses=None)
     def post(self, request):
         refresh = request.data.get("refresh")
         if not refresh:
@@ -59,6 +63,7 @@ class LogoutView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=UsuarioMeSerializer)
     def get(self, request):
         return Response(UsuarioMeSerializer(request.user).data)
 

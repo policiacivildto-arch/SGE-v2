@@ -8,7 +8,7 @@ from cadastros.models import Policial
 from estoque.models import BemIndividual, Item, StatusItemChoices
 
 from .emails import send_cautela_email_confirmation, send_devolucao_email_confirmation, send_signature_receipt_email
-from .models import Cautela, CautelaStatusChoices, SequenciaNumeracao
+from .models import Cautela, CautelaStatusChoices, Movimento, MovimentoTipoChoices, SequenciaNumeracao
 from .signature import generate_digital_signature_svg
 
 
@@ -199,6 +199,17 @@ def criar_cautela(dados, usuario, request):
         **extra,
     )
 
+    if cautela.item_id:
+        Movimento.objects.create(
+            item_id=cautela.item_id,
+            departamento_id=cautela.departamento_id,
+            usuario=usuario if usuario and getattr(usuario, "pk", None) else None,
+            tipo=MovimentoTipoChoices.CAUTELA,
+            quantidade=cautela.qtd,
+            status=cautela.status,
+            data=timezone.now(),
+        )
+
     email_info = None
     if not has_signature:
         email_info = send_cautela_email_confirmation(cautela, request)
@@ -269,6 +280,17 @@ def devolver_cautela(cautela, dados, request):
             item_final_status = StatusItemChoices.EM_USO
         item.status = item_final_status
         item.save(update_fields=["qtd_disp", "status"])
+
+        usuario = getattr(request, "user", None) if request is not None else None
+        Movimento.objects.create(
+            item_id=cautela.item_id,
+            departamento_id=cautela.departamento_id,
+            usuario=usuario if usuario and getattr(usuario, "pk", None) else None,
+            tipo=MovimentoTipoChoices.DEVOLUCAO,
+            quantidade=cautela.qtd,
+            status=cautela.status,
+            data=timezone.now(),
+        )
 
     email_info = None
     if not has_signature:

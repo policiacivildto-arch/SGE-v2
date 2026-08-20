@@ -39,8 +39,12 @@ services:
       - source: smtp_password
         target: smtp_password_SGA_BACK
     environment:
-      DEBUG: "True"
-      ALLOWED_HOSTS: "*"
+      # Padrão seguro por design: se DJANGO_DEBUG/DJANGO_ALLOWED_HOSTS não
+      # forem definidos no .env, sobe com DEBUG desligado e nenhum host
+      # liberado (Django recusa a requisição em vez de aceitar "*" por
+      # esquecimento) — configure as duas no .env antes de ir para produção.
+      DEBUG: "${DJANGO_DEBUG:-False}"
+      ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
       DB_HOST: "db"
       DB_PORT: "5432"
       SMTP_HOST: "${SMTP_HOST:-smtp-mail.outlook.com}"

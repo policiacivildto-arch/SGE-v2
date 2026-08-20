@@ -575,7 +575,8 @@ function CadItensCompra() {
   };
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => loadData(), 250);
+    return () => clearTimeout(timer);
   }, [search]);
 
   // Automatic Description construction when tipo, marca, or modelo changes

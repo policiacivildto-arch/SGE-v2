@@ -26,7 +26,7 @@ class CompraSerializer(serializers.ModelSerializer):
             "criado_em", "atualizado_em",
         ]
 
-    def get_fornecedor_nome(self, obj):
+    def get_fornecedor_nome(self, obj) -> str:
         return obj.fornecedor.nome if obj.fornecedor_id else ""
 
 
@@ -57,10 +57,10 @@ class ItemSerializer(serializers.ModelSerializer):
             "obs", "tipo", "modelo", "criado_por_id", "criado_em", "atualizado_em",
         ]
 
-    def get_fornecedor_nome(self, obj):
+    def get_fornecedor_nome(self, obj) -> str:
         return obj.fornecedor.nome if obj.fornecedor_id else ""
 
-    def get_compra_excluida(self, obj):
+    def get_compra_excluida(self, obj) -> bool:
         return False
 
 
@@ -86,13 +86,13 @@ class BemIndividualSerializer(serializers.ModelSerializer):
             "criado_por_id", "criado_em", "atualizado_em",
         ]
 
-    def get_item_categoria(self, obj):
+    def get_item_categoria(self, obj) -> str:
         return obj.item.categoria if obj.item_id else ""
 
-    def get_item_marca(self, obj):
+    def get_item_marca(self, obj) -> str:
         return obj.item.marca if obj.item_id else ""
 
-    def get_item_descricao(self, obj):
+    def get_item_descricao(self, obj) -> str:
         return obj.item.descricao if obj.item_id else ""
 
 
@@ -115,5 +115,5 @@ class ArmaSerializer(serializers.ModelSerializer):
             "criado_em", "atualizado_em",
         ]
 
-    def get_item_descricao(self, obj):
+    def get_item_descricao(self, obj) -> str:
         return obj.item.descricao if obj.item_id else ""

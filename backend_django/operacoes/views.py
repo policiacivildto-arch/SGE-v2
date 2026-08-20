@@ -2,6 +2,8 @@ from datetime import date
 
 from django.db.models import Q
 from django.http import HttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -360,6 +362,7 @@ class DashboardEstoqueView(APIView):
     permission_classes = [SGARolePermission]
     section = "estoque"
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         params = request.query_params
         categoria_filtro = (params.get("categoria") or "").strip()
