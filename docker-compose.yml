@@ -39,12 +39,21 @@ services:
       - source: smtp_password
         target: smtp_password_SGA_BACK
     environment:
-      # Padrão seguro por design: se DJANGO_DEBUG/DJANGO_ALLOWED_HOSTS não
-      # forem definidos no .env, sobe com DEBUG desligado e nenhum host
-      # liberado (Django recusa a requisição em vez de aceitar "*" por
-      # esquecimento) — configure as duas no .env antes de ir para produção.
+      # Padrão seguro por design: se DJANGO_DEBUG não for definido no .env,
+      # sobe com DEBUG desligado — configure DJANGO_DEBUG=True só em
+      # desenvolvimento local, nunca em produção.
+      #
+      # ALLOWED_HOSTS já vem correto por padrão como "backend": nesta
+      # topologia o Django nunca é exposto direto (nem em dev nem em
+      # produção, ver serviço `backend` abaixo — sem `ports:`) — quem
+      # recebe requisição de fora é sempre o container `frontend`
+      # (server.ts), que faz proxy com `changeOrigin: true` e por isso
+      # SEMPRE reescreve o Host para "backend:8000" antes de repassar pro
+      # Django, não importa o domínio público usado pelo navegador. Só
+      # sobrescreva DJANGO_ALLOWED_HOSTS se você mudar essa topologia
+      # (ex.: publicar a porta do backend direto no host).
       DEBUG: "${DJANGO_DEBUG:-False}"
-      ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
+      ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-backend}"
       DB_HOST: "db"
       DB_PORT: "5432"
       SMTP_HOST: "${SMTP_HOST:-smtp-mail.outlook.com}"

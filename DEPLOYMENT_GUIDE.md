@@ -111,7 +111,7 @@ npm run dev
 
 O `docker-compose.yml` já está pronto para produção com Docker Secrets (nunca `.env` para credenciais reais — ver `PRD_BACKEND_DJANGO.md`, seção 5.3):
 1. Gere segredos reais em `secrets/*.txt` no servidor (nunca versionados).
-2. Defina `DJANGO_ALLOWED_HOSTS` no `.env` do servidor com o(s) domínio(s) reais (ex.: `DJANGO_ALLOWED_HOSTS=sga.pc.ce.gov.br`). Não defina `DJANGO_DEBUG` — o padrão já é `False`; só use `DJANGO_DEBUG=True` em ambiente local de desenvolvimento, nunca em produção.
+2. Não defina `DJANGO_DEBUG` nem `DJANGO_ALLOWED_HOSTS` no `.env` do servidor — os padrões já são os corretos para produção (`DEBUG=False`; `ALLOWED_HOSTS=backend`, já que o Django nunca é exposto direto, só via proxy do container `frontend`). Só use `DJANGO_DEBUG=True` em ambiente local de desenvolvimento, nunca em produção.
 3. `docker compose up -d --build`.
 
 ---
