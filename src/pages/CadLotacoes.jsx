@@ -60,6 +60,11 @@ function CadLotacoes() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
+  // `deptosConfig` é cache local (localStorage) para leitura síncrona por
+  // deptoUtils.js em outras páginas — mas a fonte de verdade é a API
+  // `departamentos` (Django). Toda escrita passa por ela primeiro; só
+  // depois o cache local é atualizado, para não voltar ao bug de um
+  // departamento cadastrado por um usuário nunca aparecer para outro.
   const saveDeptosConfig = (newConfig) => {
     setDeptosConfig(newConfig);
     localStorage.setItem('sga_deptos_config', JSON.stringify(newConfig));
@@ -75,8 +80,26 @@ function CadLotacoes() {
     }
   };
 
+  const loadDeptosConfig = async () => {
+    try {
+      const data = await apiService.getList('departamentos', new URLSearchParams({ page_size: '500' }));
+      const fromApi = {};
+      (data.results || []).forEach((d) => {
+        fromApi[d.nome] = { id: d.id, sigla: d.sigla || '', resp: d.responsavel || 'Não Informado' };
+      });
+      // Nomes conhecidos (lista padrão da PC-CE) que ainda não têm linha
+      // no banco continuam aparecendo na tela de configuração, só que sem
+      // `id` — a primeira edição/criação os persiste de verdade na API.
+      const merged = { ...DEFAULT_DEPTOS_CONFIG, ...fromApi };
+      saveDeptosConfig(merged);
+    } catch (err) {
+      // Sem API disponível, cai para o que já estiver em cache local.
+    }
+  };
+
   useEffect(() => {
     loadRows();
+    loadDeptosConfig();
   }, []);
 
   // Check if department has seccionais
@@ -310,6 +333,12 @@ function CadLotacoes() {
     try {
       const newName = deptoForm.name.trim();
 
+      const payload = {
+        nome: newName,
+        sigla: deptoForm.sigla.trim() || getDeptoSigla(newName),
+        responsavel: deptoForm.resp.trim() || 'Não Informado',
+      };
+
       if (isNewDepto) {
         // Create new department in config
         if (deptosConfig[newName]) {
@@ -318,24 +347,29 @@ function CadLotacoes() {
           return;
         }
 
+        const created = await apiService.create('departamentos', payload);
         const updated = {
           ...deptosConfig,
-          [newName]: {
-            sigla: deptoForm.sigla.trim() || getDeptoSigla(newName),
-            resp: deptoForm.resp.trim() || 'Não Informado'
-          }
+          [newName]: { id: created.id, sigla: payload.sigla, resp: payload.responsavel },
         };
         saveDeptosConfig(updated);
         setIsDeptoModalOpen(false);
       } else {
         // Edit existing department in config
         const oldName = editingDeptoName;
-        
+
+        // Departamento pode ainda não ter linha própria na API (nome só
+        // existia na lista padrão) — nesse caso a edição o persiste agora.
+        const existingId = deptosConfig[oldName]?.id;
+        const saved = existingId
+          ? await apiService.update('departamentos', existingId, payload)
+          : await apiService.create('departamentos', payload);
+
         // If the name changed, we must update all units that belong to oldName to have newName
         if (oldName !== newName) {
           // Find all units belonging to oldName
           const unitsToUpdate = rows.filter(u => u.depto === oldName);
-          
+
           // Let's update each unit in the backend
           for (let i = 0; i < unitsToUpdate.length; i++) {
             const unit = unitsToUpdate[i];
@@ -349,13 +383,10 @@ function CadLotacoes() {
         // Update deptosConfig mapping
         const updated = { ...deptosConfig };
         delete updated[oldName];
-        updated[newName] = {
-          sigla: deptoForm.sigla.trim() || getDeptoSigla(newName),
-          resp: deptoForm.resp.trim() || 'Não Informado'
-        };
+        updated[newName] = { id: saved.id, sigla: payload.sigla, resp: payload.responsavel };
 
         saveDeptosConfig(updated);
-        
+
         // If we are currently viewing this department in detail modal, update its active name
         if (selectedDeptoName === oldName) {
           setSelectedDeptoName(newName);
@@ -384,6 +415,13 @@ function CadLotacoes() {
       const unitsToDelete = rows.filter(u => u.depto === deptoToDelete);
       for (let i = 0; i < unitsToDelete.length; i++) {
         await apiService.remove('lotacoes', unitsToDelete[i].id);
+      }
+
+      // Nomes que nunca chegaram a ser salvos na API (só existiam na
+      // lista padrão local) não têm `id` — nada para excluir no backend.
+      const deptoId = deptosConfig[deptoToDelete]?.id;
+      if (deptoId) {
+        await apiService.remove('departamentos', deptoId);
       }
 
       // Remove from config
@@ -578,10 +616,12 @@ function CadLotacoes() {
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
         try {
-          updated[item.name] = {
-            sigla: item.sigla,
-            resp: item.resp
-          };
+          const payload = { nome: item.name, sigla: item.sigla, responsavel: item.resp };
+          const existingId = deptosConfig[item.name]?.id;
+          const saved = existingId
+            ? await apiService.update('departamentos', existingId, payload)
+            : await apiService.create('departamentos', payload);
+          updated[item.name] = { id: saved.id, sigla: item.sigla, resp: item.resp };
           successes++;
         } catch (err) {
           console.error('Erro ao importar depto:', item, err);

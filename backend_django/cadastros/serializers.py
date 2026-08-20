@@ -7,7 +7,7 @@ from .services import resolve_lotacao, resolve_or_create_departamento
 class DepartamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Departamento
-        fields = ["id", "nome", "sigla", "ativo", "criado_em", "atualizado_em"]
+        fields = ["id", "nome", "sigla", "responsavel", "ativo", "criado_em", "atualizado_em"]
 
 
 class DelegaciaSerializer(serializers.ModelSerializer):

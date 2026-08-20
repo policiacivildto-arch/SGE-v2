@@ -6,6 +6,7 @@ from core.models import BaseModel
 class Departamento(BaseModel):
     nome = models.CharField(max_length=255)
     sigla = models.CharField(max_length=20, blank=True)
+    responsavel = models.CharField(max_length=255, blank=True)
     ativo = models.BooleanField(default=True)
 
     def __str__(self):
