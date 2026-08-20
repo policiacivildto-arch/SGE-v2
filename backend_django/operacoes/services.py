@@ -147,6 +147,12 @@ def criar_cautela(dados, usuario, request):
             item.qtd_disp = BemIndividual.objects.filter(
                 item=item, status=StatusItemChoices.DISPONIVEL
             ).count()
+
+            # Item individualizado: exatamente 1 BemIndividual é alocado
+            # por cautela, então a quantidade registrada precisa refletir
+            # isso — nunca o valor arbitrário que o cliente mandou (ex.:
+            # qtd=5 pedido para uma arma serializada única).
+            qtd = 1
         else:
             if qtd > item.qtd_disp:
                 raise CautelaError(

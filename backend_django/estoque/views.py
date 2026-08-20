@@ -97,8 +97,13 @@ class ItemViewSet(viewsets.ModelViewSet):
         old_qtd_total = instance.qtd_total
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        item = serializer.save()
-        services.atualizar_item_e_sincronizar_bens(item, old_qtd_total, None)
+        # Uma única transação: se a sincronização dos bens individuais
+        # falhar, o save do Item também é desfeito — sem isso, uma falha
+        # no meio deixava qtd_total do Item já salvo mas os
+        # BemIndividual fora de sincronia com esse número.
+        with transaction.atomic():
+            item = serializer.save()
+            services.atualizar_item_e_sincronizar_bens(item, old_qtd_total, None)
         item.refresh_from_db()
         return Response(self.get_serializer(item).data)
 

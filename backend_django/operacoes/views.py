@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cadastros.models import Lotacao
-from estoque.models import Arma, Item
+from estoque.models import Arma, BemIndividual, Item
 from usuarios.permissions import SGARolePermission
 
 from . import services
@@ -179,7 +179,28 @@ class CautelaViewSet(viewsets.ModelViewSet):
             "Número IO/BO", "Número Série Reparo", "Observações",
         ]
         lines = [*_RELATORIO_HEADER_LINES, ";".join(headers)]
-        for c in qs.select_related("departamento", "lotacao", "item"):
+        cautelas = list(qs.select_related("departamento", "lotacao", "item"))
+
+        # Itens individualizados (armas etc.) têm patrimônio por unidade em
+        # BemIndividual — usar c.item.patrimonio (do "item pai") faria o
+        # relatório mostrar o mesmo tombo pra toda cautela do mesmo item,
+        # independente de qual unidade física foi entregue. Busca em lote
+        # (1 query) em vez de por linha, pra não introduzir N+1 no relatório.
+        item_ids = {c.item_id for c in cautelas if c.item_id and c.serie}
+        bens_by_key = {}
+        if item_ids:
+            for bem in BemIndividual.objects.filter(item_id__in=item_ids):
+                if bem.serie:
+                    bens_by_key[(bem.item_id, bem.serie.strip().lower())] = bem.patrimonio
+                if bem.patrimonio:
+                    bens_by_key[(bem.item_id, bem.patrimonio.strip().lower())] = bem.patrimonio
+
+        for c in cautelas:
+            patrimonio = c.item.patrimonio if c.item_id else ""
+            if c.serie and c.item_id:
+                bem_patrimonio = bens_by_key.get((c.item_id, c.serie.strip().lower()))
+                if bem_patrimonio is not None:
+                    patrimonio = bem_patrimonio
             row = [
                 c.numero or "", c.data_saida or "", c.data_prev or "", c.data_dev or "",
                 c.policial_nome or "", c.matricula or "",
@@ -188,7 +209,7 @@ class CautelaViewSet(viewsets.ModelViewSet):
                 c.item_desc or "", c.item.categoria if c.item_id else "",
                 str(c.qtd or 1),
                 str(c.qtd_carregadores) if c.qtd_carregadores is not None else "",
-                c.serie or "", c.item.patrimonio if c.item_id else "",
+                c.serie or "", patrimonio or "",
                 c.status or "Ativa", c.condicao_dev or "", c.motivo_recolhimento or "",
                 c.nup or "", c.numero_io_bo or "", c.numero_serie_reparo or "",
                 c.obs_dev or "",

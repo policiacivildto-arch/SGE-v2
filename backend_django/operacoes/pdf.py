@@ -11,9 +11,12 @@ import re
 from pathlib import Path
 
 from django.conf import settings
+from django.db.models import Q
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+
+from estoque.models import BemIndividual
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
 MARGIN = 50
@@ -166,7 +169,19 @@ def gerar_pdf_cautela(cautela) -> bytes:
     if cautela.qtd_carregadores not in (None, ""):
         w.text(f"Quantidade de Carregadores: {cautela.qtd_carregadores}")
     w.text(f"Número de Série: {cautela.serie or '—'}")
-    patrimonio = cautela.item.patrimonio if cautela.item_id else ""
+    # Para itens individualizados (armas etc.), cada BemIndividual tem seu
+    # próprio patrimônio — usar cautela.item.patrimonio aqui imprimiria o
+    # mesmo tombo do "item pai" em todo termo de cautela desse item,
+    # independente de qual unidade física foi de fato entregue.
+    patrimonio = ""
+    if cautela.serie and cautela.item_id:
+        bem = BemIndividual.objects.filter(item_id=cautela.item_id).filter(
+            Q(serie__iexact=cautela.serie) | Q(patrimonio__iexact=cautela.serie)
+        ).first()
+        if bem:
+            patrimonio = bem.patrimonio
+    if not patrimonio and cautela.item_id:
+        patrimonio = cautela.item.patrimonio
     w.text(f"Patrimônio / Tombo: {patrimonio or '—'}")
     w.move_down()
 
